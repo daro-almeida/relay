@@ -3,15 +3,16 @@ package relay;
 import io.netty.channel.EventLoopGroup;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import pt.unl.fct.di.novasys.channel.proxy.messaging.*;
+
 import pt.unl.fct.di.novasys.network.AttributeValidator;
 import pt.unl.fct.di.novasys.network.Connection;
-import pt.unl.fct.di.novasys.network.ISerializer;
 import pt.unl.fct.di.novasys.network.NetworkManager;
 import pt.unl.fct.di.novasys.network.data.Attributes;
 import pt.unl.fct.di.novasys.network.data.Host;
 import pt.unl.fct.di.novasys.network.listeners.InConnListener;
 import pt.unl.fct.di.novasys.network.listeners.MessageListener;
+
+import relay.messaging.*;
 
 import java.io.IOException;
 import java.net.Inet4Address;
@@ -22,7 +23,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class Relay<T> implements InConnListener<ProxyMessage<T>>, MessageListener<ProxyMessage<T>>, AttributeValidator {
+public class Relay implements InConnListener<RelayMessage>, MessageListener<RelayMessage>, AttributeValidator {
 
     private static final Logger logger = LogManager.getLogger(Relay.class);
     private static final Short PROXY_MAGIC_NUMBER = 0x1369;
@@ -45,13 +46,13 @@ public class Relay<T> implements InConnListener<ProxyMessage<T>>, MessageListene
 
     private Attributes attributes;
 
-    private final NetworkManager<ProxyMessage<T>> network;
+    private final NetworkManager<RelayMessage> network;
 
-    private final Map<Host, Connection<ProxyMessage<T>>> peerToRelayConnections;
+    private final Map<Host, Connection<RelayMessage>> peerToRelayConnections;
 
     private final Map<Host, Set<Host>> peerToPeerOutConnections;
 
-    public Relay(ISerializer<T> serializer, Properties properties) throws IOException {
+    public Relay(Properties properties) throws IOException {
         InetAddress addr;
         if (properties.containsKey(ADDRESS_KEY))
             addr = Inet4Address.getByName(properties.getProperty(ADDRESS_KEY));
@@ -68,8 +69,8 @@ public class Relay<T> implements InConnListener<ProxyMessage<T>>, MessageListene
         EventLoopGroup eventExecutors = properties.containsKey(WORKER_GROUP_KEY) ?
                 (EventLoopGroup) properties.get(WORKER_GROUP_KEY) :
                 NetworkManager.createNewWorkerGroup(0);
-        ProxyMessageSerializer<T> tProxyMessageSerializer = new ProxyMessageSerializer<>(serializer);
-        network = new NetworkManager<>(tProxyMessageSerializer, this, hbInterval, hbTolerance, connTimeout);
+        RelayMessageSerializer tRelayMessageSerializer = new RelayMessageSerializer();
+        network = new NetworkManager<>(tRelayMessageSerializer, this, hbInterval, hbTolerance, connTimeout);
         network.createServerSocket(this, listenAddress, this, eventExecutors);
 
         attributes = new Attributes();
@@ -81,12 +82,12 @@ public class Relay<T> implements InConnListener<ProxyMessage<T>>, MessageListene
 
     }
 
-    public Relay(Properties properties) throws IOException {
-        this(null, properties);
+    public void killPeer(Host peer) {
+        peerToRelayConnections.get(peer).disconnect();
     }
 
     @Override
-    public void inboundConnectionUp(Connection<ProxyMessage<T>> connection) {
+    public void inboundConnectionUp(Connection<RelayMessage> connection) {
         Host clientSocket;
         try {
             clientSocket = connection.getPeerAttributes().getHost("listen_address");
@@ -100,7 +101,7 @@ public class Relay<T> implements InConnListener<ProxyMessage<T>>, MessageListene
             logger.error("Inbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
         } else {
             logger.debug("InboundConnectionUp " + clientSocket);
-            Connection<ProxyMessage<T>> old;
+            Connection<RelayMessage> old;
 
             old = this.peerToRelayConnections.putIfAbsent(clientSocket, connection);
 
@@ -113,8 +114,31 @@ public class Relay<T> implements InConnListener<ProxyMessage<T>>, MessageListene
     }
 
     @Override
-    public void inboundConnectionDown(Connection<ProxyMessage<T>> connection, Throwable throwable) {
+    public void inboundConnectionDown(Connection<RelayMessage> connection, Throwable throwable) {
+        Host clientSocket;
+        try {
+            clientSocket = connection.getPeerAttributes().getHost("listen_address");
+        } catch (IOException ex) {
+            logger.error("Inbound connection without valid listen address in connectionDown: " + ex.getMessage());
+            connection.disconnect();
+            return;
+        }
 
+        if (clientSocket == null) {
+            logger.error("Inbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
+        } else {
+            logger.debug("InboundConnectionDown " + clientSocket);
+
+            peerToRelayConnections.remove(clientSocket);
+            for (Host peer : peerToPeerOutConnections.keySet()) {
+                Set<Host> outConnections = peerToPeerOutConnections.get(peer);
+                if (outConnections.contains(clientSocket)) {
+                    outConnections.remove(clientSocket);
+                    peerToRelayConnections.get(peer).sendMessage(new RelayConnectionFailMessage(clientSocket, peer, new Throwable("Node " + peer + " died")));
+                }
+            }
+            peerToPeerOutConnections.remove(clientSocket);
+        }
     }
 
     public void serverSocketBind(boolean success, Throwable cause) {
@@ -131,38 +155,38 @@ public class Relay<T> implements InConnListener<ProxyMessage<T>>, MessageListene
     }
 
     @Override
-    public void deliverMessage(ProxyMessage<T> msg, Connection<ProxyMessage<T>> connection) {
+    public void deliverMessage(RelayMessage msg, Connection<RelayMessage> connection) {
         Host from = msg.getFrom();
         Host to = msg.getTo();
-        ProxyMessage.Type type = msg.getType();
+        RelayMessage.Type type = msg.getType();
 
-        //logger.debug(type.name() + " message from " + from + " to "+ to);
-
-        Connection<ProxyMessage<T>> con = peerToRelayConnections.get(to);
+        Connection<RelayMessage> con = peerToRelayConnections.get(to);
         if(con == null) {
             logger.debug("No relay connection to "+to);
             return;
         }
 
         switch (type) {
-            case APP_MSG: handleAppMessage((ProxyAppMessage<T>) msg, from, to, con); break;
-            case CONN_OPEN: handleConnectionRequest((ProxyConnectionOpenMessage<T>) msg, from, to, con); break;
-            case CONN_CLOSE: handleConnectionClose((ProxyConnectionCloseMessage<T>) msg, from, to, con); break;
-            case CONN_ACCEPT: handleConnectionAccept((ProxyConnectionAcceptMessage<T>) msg, from, to, con); break;
-            case CONN_FAIL:
+            case APP_MSG: handleAppMessage((RelayAppMessage) msg, from, to, con); break;
+            case CONN_OPEN: handleConnectionRequest((RelayConnectionOpenMessage) msg, from, to, con); break;
+            case CONN_CLOSE: handleConnectionClose((RelayConnectionCloseMessage) msg, from, to, con); break;
+            case CONN_ACCEPT: handleConnectionAccept((RelayConnectionAcceptMessage) msg, from, to, con); break;
+            case CONN_FAIL: throw new AssertionError("Got CONN_FAIL in single relay implementation");
         }
     }
 
-    private void handleConnectionClose(ProxyConnectionCloseMessage<T> msg, Host from, Host to, Connection<ProxyMessage<T>> con) {
+    private void handleConnectionClose(RelayConnectionCloseMessage msg, Host from, Host to, Connection<RelayMessage> conTo) {
         logger.debug("Connection close message to "+to+" from "+from);
 
-        if(!peerToPeerOutConnections.get(to).contains(from)) {
+        if(!peerToPeerOutConnections.get(from).remove(to)) {
             logger.error("Connection close with no out connection from " + from + " to " + to);
             return;
         }
+
+        conTo.sendMessage(msg);
     }
 
-    private void handleConnectionAccept(ProxyConnectionAcceptMessage<T> msg, Host from, Host to, Connection<ProxyMessage<T>> conTo) {
+    private void handleConnectionAccept(RelayConnectionAcceptMessage msg, Host from, Host to, Connection<RelayMessage> conTo) {
         logger.debug("Connection accepted message to "+to+" from "+from);
 
         if(!peerToPeerOutConnections.get(to).contains(from)) {
@@ -173,8 +197,8 @@ public class Relay<T> implements InConnListener<ProxyMessage<T>>, MessageListene
         conTo.sendMessage(msg);
     }
 
-    private void handleAppMessage(ProxyAppMessage<T> msg, Host from, Host to, Connection<ProxyMessage<T>> conTo) {
-        logger.debug("Message "+msg.getPayload()+" to "+to+" from "+from);
+    private void handleAppMessage(RelayAppMessage msg, Host from, Host to, Connection<RelayMessage> conTo) {
+        logger.debug("Message to "+to+" from "+from);
 
         if(!peerToPeerOutConnections.get(from).contains(to) && !peerToPeerOutConnections.get(to).contains(from)) {
             logger.error("No connection between "+from+" and "+to);
@@ -184,7 +208,7 @@ public class Relay<T> implements InConnListener<ProxyMessage<T>>, MessageListene
         conTo.sendMessage(msg);
     }
 
-    private void handleConnectionRequest(ProxyConnectionOpenMessage<T> msg, Host from, Host to, Connection<ProxyMessage<T>> conTo) {
+    private void handleConnectionRequest(RelayConnectionOpenMessage msg, Host from, Host to, Connection<RelayMessage> conTo) {
         logger.debug("Connection request to "+to+" from "+from);
 
         if(peerToPeerOutConnections.get(from).contains(to)) {

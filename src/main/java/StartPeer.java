@@ -19,6 +19,7 @@ public class StartPeer {
         properties.put("port",String.valueOf(self.getPort()));
         properties.put("relay_address","localhost");
         properties.put("relay_port",args[1]);
+        properties.put("trigger_sent","true");
 
         ProxyChannel<String> ch = new ProxyChannel<>(new StringSerializer(), new SimpleListener<>(self), properties);
 
@@ -26,6 +27,10 @@ public class StartPeer {
 
         Host target = new Host(InetAddress.getByName("localhost"),Integer.parseInt(args[2]));
         ch.openConnection(target);
-        ch.sendMessage("Hello!", target, ProxyChannel.CONNECTION_OUT);
+        while(true) {
+            Thread.sleep((long) (1000 + Math.random() * 4000));
+            ch.sendMessage("Hello!", target, ProxyChannel.CONNECTION_OUT);
+        }
+
     }
 }

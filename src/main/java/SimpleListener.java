@@ -17,17 +17,17 @@ public class SimpleListener<T> implements ChannelListener<T> {
 
     @Override
     public void deliverMessage(T msg, Host from) {
-        logger.info(self+": got "+msg+" from "+from);
+        logger.info(self+": got '"+msg+"' from "+from);
     }
 
     @Override
     public void messageSent(T msg, Host to) {
-        logger.info(self+": sent "+msg+" int to "+to);
+        logger.info(self+": sent '"+msg+"' to "+to);
     }
 
     @Override
     public void messageFailed(T msg, Host to, Throwable cause) {
-        logger.info(self+": error on sending '"+msg+"' message to "+to+" : "+cause);
+        logger.info(self+": error on sending '"+msg+"' to "+to+" : "+cause);
     }
 
     @Override
