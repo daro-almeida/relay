@@ -9,12 +9,10 @@
     <Loggers>
         <Logger level="info" name="io.netty"/>
         <Logger level="info" name="pt.unl.fct.di.novasys.network"/>
-        <Logger level="debug" name="pt.unl.fct.di.novasys.channel"/>
-        <Logger level="info" name="pt.unl.fct.di.novasys.babel"/>-
+        <Logger level="info" name="pt.unl.fct.di.novasys.channel"/>
 
-        <Logger level="info" name="hyparview"/>-->
-        <Root level="debug">
-            <AppenderRef ref="Console" level="debug"/>
+        <Root level="info">
+            <AppenderRef ref="Console" level="info"/>
         </Root>
     </Loggers>
 
