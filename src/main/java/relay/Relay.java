@@ -1,5 +1,7 @@
 package relay;
 
+import io.netty.channel.DefaultEventLoop;
+import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -14,35 +16,36 @@ import pt.unl.fct.di.novasys.network.listeners.MessageListener;
 
 import relay.messaging.*;
 
-import java.io.IOException;
-import java.net.Inet4Address;
+import java.io.*;
 import java.net.InetAddress;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
+import java.net.UnknownHostException;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.TimeUnit;
 
 public class Relay implements InConnListener<RelayMessage>, MessageListener<RelayMessage>, AttributeValidator {
 
     private static final Logger logger = LogManager.getLogger(Relay.class);
     private static final Short PROXY_MAGIC_NUMBER = 0x1369;
 
-    public final static String NAME = "Relay";
+    public static final String NAME = "Relay";
 
-    public final static String ADDRESS_KEY = "address";
-    public final static String PORT_KEY = "port";
-    public final static String HEARTBEAT_INTERVAL_KEY = "heartbeat_interval";
-    public final static String HEARTBEAT_TOLERANCE_KEY = "heartbeat_tolerance";
-    public final static String CONNECT_TIMEOUT_KEY = "connect_timeout";
-    public final static String WORKER_GROUP_KEY = "workerGroup";
+    public static final String ADDRESS_KEY = "address";
+    public static final String PORT_KEY = "port";
+    public static final String HEARTBEAT_INTERVAL_KEY = "heartbeat_interval";
+    public static final String HEARTBEAT_TOLERANCE_KEY = "heartbeat_tolerance";
+    public static final String CONNECT_TIMEOUT_KEY = "connect_timeout";
+    public static final String WORKER_GROUP_KEY = "workerGroup";
 
     public static final String LISTEN_ADDRESS_ATTRIBUTE = "listen_address";
 
-    public final static String DEFAULT_PORT = "9082";
-    public final static String DEFAULT_HB_INTERVAL = "0";
-    public final static String DEFAULT_HB_TOLERANCE = "0";
-    public final static String DEFAULT_CONNECT_TIMEOUT = "1000";
+    public static final String DEFAULT_PORT = "9082";
+    public static final String DEFAULT_HB_INTERVAL = "0";
+    public static final String DEFAULT_HB_TOLERANCE = "0";
+    public static final String DEFAULT_CONNECT_TIMEOUT = "1000";
+
+    public static final long DEFAULT_DELAY = 0;
 
     private Attributes attributes;
 
@@ -51,11 +54,59 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
     private final Map<Host, Connection<RelayMessage>> peerToRelayConnections;
 
     private final Map<Host, Set<Host>> peerToPeerOutConnections;
+    private final Map<Host, Set<Host>> peerToPeerInConnections;
+
+    private final Set<Host> deadPeers;
+
+    private final Map<Host, EventLoop> loopPerReceiver;
+
+    //there's probably a better existing structure for this
+    private Map<Host,Map<Host,Long>> trafficMatrix;
+
+    public Relay(Properties properties, Map<Host,Map<Host,Long>> trafficMatrix) throws IOException {
+        this(properties);
+        this.trafficMatrix = trafficMatrix;
+    }
+
+    public Relay(Properties properties, InputStream hostsConfig, InputStream delayConfig) throws IOException {
+        this(properties);
+
+        //initialize traffic matrix ######
+        trafficMatrix = new HashMap<>();
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(hostsConfig));
+
+        LinkedList<Host> hostList = new LinkedList<>();
+        reader.lines().forEach((String line) -> {
+        String[] parts = line.split(":");
+            try {
+               InetAddress ip = InetAddress.getByName(parts[0]);
+               int port = Integer.parseInt(parts[1]);
+
+               hostList.add(new Host(ip,port));
+            } catch (UnknownHostException e) {
+               logger.error("Bad address in hosts config.");
+               System.exit(1);
+            }
+        });
+
+        reader = new BufferedReader(new InputStreamReader(delayConfig));
+        for (Host hostI: hostList) {
+            String[] strValues = reader.readLine().split(" ");
+            int i = 0;
+            trafficMatrix.put(hostI, new HashMap<>());
+            for (Host hostJ: hostList) {
+                long delay = Long.parseLong(strValues[i++]);
+                trafficMatrix.get(hostI).put(hostJ, delay);
+            }
+        }
+        //######
+    }
 
     public Relay(Properties properties) throws IOException {
         InetAddress addr;
         if (properties.containsKey(ADDRESS_KEY))
-            addr = Inet4Address.getByName(properties.getProperty(ADDRESS_KEY));
+            addr = InetAddress.getByName(properties.getProperty(ADDRESS_KEY));
         else
             throw new IllegalArgumentException(NAME + " requires binding address");
 
@@ -78,12 +129,57 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
         attributes.putHost(LISTEN_ADDRESS_ATTRIBUTE, listenAddress);
 
         peerToRelayConnections = new ConcurrentHashMap<>();
-        peerToPeerOutConnections = new ConcurrentHashMap<>();
 
+        peerToPeerOutConnections = new ConcurrentHashMap<>();
+        peerToPeerInConnections = new ConcurrentHashMap<>();
+
+        deadPeers = new ConcurrentSkipListSet<>();
+
+        loopPerReceiver = new ConcurrentHashMap<>();
     }
 
     public void killPeer(Host peer) {
-        peerToRelayConnections.get(peer).disconnect();
+        logger.debug("Killing peer: "+peer);
+
+        if(!peerToRelayConnections.containsKey(peer)) {
+            logger.debug("Peer to kill not connected to relay.");
+            return;
+        }
+
+        if(!deadPeers.add(peer)) {
+            logger.debug("Peer already dead.");
+            return;
+        }
+
+        for (Host connectedPeer : peerToPeerOutConnections.keySet()) {
+            Set<Host> outConnections = peerToPeerOutConnections.get(connectedPeer);
+            if (outConnections.remove(peer)) {
+                sendMessageWithDelay(new RelayPeerDeadMessage(peer, connectedPeer, new Throwable("Node " + peer + " died")), peerToRelayConnections.get(connectedPeer));
+            }
+        }
+
+        for (Host connectedPeer : peerToPeerInConnections.keySet()) {
+            Set<Host> inConnections = peerToPeerInConnections.get(connectedPeer);
+            if (inConnections.remove(peer)) {
+                sendMessageWithDelay(new RelayPeerDeadMessage(peer, connectedPeer, new Throwable("Node " + peer + " died")), peerToRelayConnections.get(connectedPeer));
+            }
+        }
+
+        peerToPeerOutConnections.put(peer, new HashSet<>());
+        peerToPeerInConnections.put(peer, new HashSet<>());
+    }
+
+    public void connectPeer(Host peer) {
+        logger.debug("Connecting peer: "+ peer);
+
+        if (!peerToRelayConnections.containsKey(peer)) {
+            logger.error("Peer to connect not connected to relay.");
+            return;
+        }
+
+        if(!deadPeers.remove(peer))
+            logger.debug("Peer already connected.");
+
     }
 
     @Override
@@ -101,15 +197,13 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
             logger.error("Inbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
         } else {
             logger.debug("InboundConnectionUp " + clientSocket);
-            Connection<RelayMessage> old;
+            Connection<RelayMessage> old = this.peerToRelayConnections.putIfAbsent(clientSocket, connection);
 
-            old = this.peerToRelayConnections.putIfAbsent(clientSocket, connection);
-
-            if (old != null) {
+            if (old != null)
                 throw new RuntimeException("Double incoming connection from: " + clientSocket + " (" + connection.getPeer() + ")");
-            }
 
             peerToPeerOutConnections.put(clientSocket, new HashSet<>());
+            peerToPeerInConnections.put(clientSocket, new HashSet<>());
         }
     }
 
@@ -127,17 +221,8 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
         if (clientSocket == null) {
             logger.error("Inbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
         } else {
-            logger.debug("InboundConnectionDown " + clientSocket);
-
+            logger.error("Peer "+clientSocket+" disconnected from relay unexpectedly! cause:"+((throwable == null) ? "" : " "+throwable));
             peerToRelayConnections.remove(clientSocket);
-            for (Host peer : peerToPeerOutConnections.keySet()) {
-                Set<Host> outConnections = peerToPeerOutConnections.get(peer);
-                if (outConnections.contains(clientSocket)) {
-                    outConnections.remove(clientSocket);
-                    peerToRelayConnections.get(peer).sendMessage(new RelayConnectionFailMessage(clientSocket, peer, new Throwable("Node " + peer + " died")));
-                }
-            }
-            peerToPeerOutConnections.remove(clientSocket);
         }
     }
 
@@ -162,7 +247,16 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
 
         Connection<RelayMessage> con = peerToRelayConnections.get(to);
         if(con == null) {
-            logger.debug("No relay connection to "+to);
+            logger.error("No relay connection to " + to + " but captured message directed to it");
+            return;
+        }
+
+        if(deadPeers.contains(from))
+            return;
+
+        if(deadPeers.contains(to)) {
+            if(type == RelayMessage.Type.CONN_OPEN)
+                sendMessageWithDelay(new RelayConnectionFailMessage(to, from, new Throwable("Peer "+to+" is dead.")), peerToRelayConnections.get(from));
             return;
         }
 
@@ -171,7 +265,8 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
             case CONN_OPEN: handleConnectionRequest((RelayConnectionOpenMessage) msg, from, to, con); break;
             case CONN_CLOSE: handleConnectionClose((RelayConnectionCloseMessage) msg, from, to, con); break;
             case CONN_ACCEPT: handleConnectionAccept((RelayConnectionAcceptMessage) msg, from, to, con); break;
-            case CONN_FAIL: throw new AssertionError("Got CONN_FAIL in single relay implementation");
+            case CONN_FAIL:
+            case PEER_DEAD: throw new AssertionError("Got "+type.name()+" in single relay implementation");
         }
     }
 
@@ -182,8 +277,9 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
             logger.error("Connection close with no out connection from " + from + " to " + to);
             return;
         }
+        peerToPeerInConnections.get(to).remove(from);
 
-        conTo.sendMessage(msg);
+        sendMessageWithDelay(msg, conTo);
     }
 
     private void handleConnectionAccept(RelayConnectionAcceptMessage msg, Host from, Host to, Connection<RelayMessage> conTo) {
@@ -194,7 +290,7 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
             return;
         }
 
-        conTo.sendMessage(msg);
+        sendMessageWithDelay(msg, conTo);
     }
 
     private void handleAppMessage(RelayAppMessage msg, Host from, Host to, Connection<RelayMessage> conTo) {
@@ -205,7 +301,7 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
             return;
         }
 
-        conTo.sendMessage(msg);
+        sendMessageWithDelay(msg, conTo);
     }
 
     private void handleConnectionRequest(RelayConnectionOpenMessage msg, Host from, Host to, Connection<RelayMessage> conTo) {
@@ -216,13 +312,38 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
             return;
         }
 
-        conTo.sendMessage(msg);
+        sendMessageWithDelay(msg, conTo);
         peerToPeerOutConnections.get(from).add(to);
+        peerToPeerInConnections.get(to).add(from);
     }
 
     @Override
     public boolean validateAttributes(Attributes attr) {
         Short channel = attr.getShort(CHANNEL_MAGIC_ATTRIBUTE);
         return channel != null && channel.equals(PROXY_MAGIC_NUMBER);
+    }
+
+    private void sendMessageWithDelay(RelayMessage msg, Connection<RelayMessage> con) {
+        Host sender = msg.getFrom();
+        Host receiver = msg.getTo();
+
+        long delay;
+        try {
+            delay = trafficMatrix.get(sender).get(receiver);
+        } catch (NullPointerException ex) {
+            //delay not defined for pair in matrix or matrix not defined
+            delay = DEFAULT_DELAY;
+        }
+
+        EventLoop loop = loopPerReceiver.get(receiver);
+        if(loop == null) {
+            loop = new DefaultEventLoop();
+            loopPerReceiver.put(receiver, loop);
+        }
+        loop.schedule(() -> {
+            if(!deadPeers.contains(receiver))
+                con.sendMessage(msg);
+
+        }, delay, TimeUnit.MILLISECONDS);
     }
 }

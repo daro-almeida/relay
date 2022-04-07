@@ -6,7 +6,7 @@
 
     <groupId>org.example</groupId>
     <artifactId>relay</artifactId>
-    <version>0.1-SNAPSHOT</version>
+    <version>1.0.0-beta</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -38,7 +38,7 @@
                 <artifactId>maven-assembly-plugin</artifactId>
                 <version>3.1.1</version>
                 <configuration>
-                    <finalName>../test</finalName>
+                    <finalName>../relay</finalName>
                     <appendAssemblyId>false</appendAssemblyId>
                     <archive>
                         <manifestEntries>
@@ -66,7 +66,7 @@
         <dependency>
             <groupId>com.github.daro-almeida</groupId>
             <artifactId>network-layer</artifactId>
-            <version>2.0.42-beta.6</version>
+            <version>2.0.42-beta.10</version>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>

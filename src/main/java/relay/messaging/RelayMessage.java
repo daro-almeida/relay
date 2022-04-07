@@ -12,7 +12,8 @@ public abstract class RelayMessage {
         CONN_OPEN(1, RelayConnectionOpenMessage.serializer),
         CONN_CLOSE(2, RelayConnectionCloseMessage.serializer),
         CONN_ACCEPT(3, RelayConnectionAcceptMessage.serializer),
-        CONN_FAIL(4, RelayConnectionFailMessage.serializer);
+        CONN_FAIL(4, RelayConnectionFailMessage.serializer),
+        PEER_DEAD(5, RelayPeerDeadMessage.serializer);
 
         public final int opCode;
         public final IRelaySerializer<RelayMessage> serializer;
