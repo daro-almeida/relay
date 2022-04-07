@@ -1,3 +1,5 @@
 /.idea/
 /test.jar
 /target/
+/relay.jar
+/src/main/java/example/
