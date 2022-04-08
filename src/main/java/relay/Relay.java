@@ -204,6 +204,8 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
 
             peerToPeerOutConnections.put(clientSocket, new HashSet<>());
             peerToPeerInConnections.put(clientSocket, new HashSet<>());
+
+            loopPerReceiver.put(clientSocket, new DefaultEventLoop());
         }
     }
 
@@ -336,10 +338,6 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
         }
 
         EventLoop loop = loopPerReceiver.get(receiver);
-        if(loop == null) {
-            loop = new DefaultEventLoop();
-            loopPerReceiver.put(receiver, loop);
-        }
         loop.schedule(() -> {
             if(!deadPeers.contains(receiver))
                 con.sendMessage(msg);
