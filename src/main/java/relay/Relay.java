@@ -45,7 +45,7 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
     public static final String DEFAULT_HB_TOLERANCE = "0";
     public static final String DEFAULT_CONNECT_TIMEOUT = "1000";
 
-    public static final long DEFAULT_DELAY = 0;
+    public static final short DEFAULT_DELAY = 0;
 
     private Attributes attributes;
 
@@ -61,9 +61,9 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
     private final Map<Host, EventLoop> loopPerReceiver;
 
     //there's probably a better existing structure for this
-    private Map<Host,Map<Host,Long>> trafficMatrix;
+    private Map<Host,Map<Host,Short>> trafficMatrix;
 
-    public Relay(Properties properties, Map<Host,Map<Host,Long>> trafficMatrix) throws IOException {
+    public Relay(Properties properties, Map<Host,Map<Host,Short>> trafficMatrix) throws IOException {
         this(properties);
         this.trafficMatrix = trafficMatrix;
     }
@@ -96,7 +96,7 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
             int i = 0;
             trafficMatrix.put(hostI, new HashMap<>());
             for (Host hostJ: hostList) {
-                long delay = Long.parseLong(strValues[i++]);
+                short delay = Short.parseShort(strValues[i++]);
                 trafficMatrix.get(hostI).put(hostJ, delay);
             }
         }
@@ -329,7 +329,7 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
         Host sender = msg.getFrom();
         Host receiver = msg.getTo();
 
-        long delay;
+        short delay;
         try {
             delay = trafficMatrix.get(sender).get(receiver);
         } catch (NullPointerException ex) {
