@@ -56,7 +56,7 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
     private final Map<Host, Set<Host>> peerToPeerOutConnections;
     private final Map<Host, Set<Host>> peerToPeerInConnections;
 
-    private final Set<Host> deadPeers;
+    private final Set<Host> disconnectedPeers;
 
     private final Map<Host, EventLoop> loopPerReceiver;
 
@@ -133,43 +133,48 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
         peerToPeerOutConnections = new ConcurrentHashMap<>();
         peerToPeerInConnections = new ConcurrentHashMap<>();
 
-        deadPeers = new ConcurrentSkipListSet<>();
+        disconnectedPeers = new ConcurrentSkipListSet<>();
 
         loopPerReceiver = new ConcurrentHashMap<>();
     }
 
-    public void killPeer(Host peer) {
-        logger.debug("Killing peer: "+peer);
+    public void disconnectPeer(Host peer) {
+        logger.debug("Disconnecting peer: "+peer);
 
         if(!peerToRelayConnections.containsKey(peer)) {
             logger.debug("Peer to kill not connected to relay.");
             return;
         }
 
-        if(!deadPeers.add(peer)) {
-            logger.debug("Peer already dead.");
+        if(!disconnectedPeers.add(peer)) {
+            logger.debug("Peer already disconnected.");
             return;
         }
 
-        for (Host connectedPeer : peerToPeerOutConnections.keySet()) {
-            Set<Host> outConnections = peerToPeerOutConnections.get(connectedPeer);
-            if (outConnections.remove(peer)) {
-                sendMessageWithDelay(new RelayPeerDeadMessage(peer, connectedPeer, new Throwable("Node " + peer + " died")), peerToRelayConnections.get(connectedPeer));
-            }
-        }
+        //send disconnect notification instantly to peer getting disconnected
+        peerToRelayConnections.get(peer).sendMessage(new RelayPeerDisconnectedMessage(peer, peer, new IOException("Node " + peer + " disconnected")));
 
-        for (Host connectedPeer : peerToPeerInConnections.keySet()) {
-            Set<Host> inConnections = peerToPeerInConnections.get(connectedPeer);
-            if (inConnections.remove(peer)) {
-                sendMessageWithDelay(new RelayPeerDeadMessage(peer, connectedPeer, new Throwable("Node " + peer + " died")), peerToRelayConnections.get(connectedPeer));
-            }
-        }
+        sendPeerDisconnectNotifications(peer, peerToPeerOutConnections);
+
+        sendPeerDisconnectNotifications(peer, peerToPeerInConnections);
 
         peerToPeerOutConnections.put(peer, new HashSet<>());
         peerToPeerInConnections.put(peer, new HashSet<>());
     }
 
-    public void connectPeer(Host peer) {
+    private void sendPeerDisconnectNotifications(Host peer, Map<Host, Set<Host>> peerToPeerConnections) {
+        for (Host connectedPeer : peerToPeerConnections.keySet()) {
+            if(connectedPeer.equals(peer))
+                continue;
+
+            Set<Host> inConnections = peerToPeerConnections.get(connectedPeer);
+            if (inConnections.remove(peer)) {
+                sendMessageWithDelay(new RelayPeerDisconnectedMessage(peer, connectedPeer, new IOException("Node " + peer + " disconnected")), peerToRelayConnections.get(connectedPeer));
+            }
+        }
+    }
+
+    public void reconnnectPeer(Host peer) {
         logger.debug("Connecting peer: "+ peer);
 
         if (!peerToRelayConnections.containsKey(peer)) {
@@ -177,9 +182,11 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
             return;
         }
 
-        if(!deadPeers.remove(peer))
+        if(!disconnectedPeers.remove(peer))
             logger.debug("Peer already connected.");
-
+        else
+            //send signal that peer is reconnected to network
+            peerToRelayConnections.get(peer).sendMessage(new RelayPeerDisconnectedMessage(peer, peer, new IOException("Node " + peer + " reconnected")));
     }
 
     @Override
@@ -210,7 +217,7 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
     }
 
     @Override
-    public void inboundConnectionDown(Connection<RelayMessage> connection, Throwable throwable) {
+    public void inboundConnectionDown(Connection<RelayMessage> connection, Throwable cause) {
         Host clientSocket;
         try {
             clientSocket = connection.getPeerAttributes().getHost("listen_address");
@@ -223,7 +230,7 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
         if (clientSocket == null) {
             logger.error("Inbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
         } else {
-            logger.error("Peer "+clientSocket+" disconnected from relay unexpectedly! cause:"+((throwable == null) ? "" : " "+throwable));
+            logger.error("Peer "+clientSocket+" disconnected from relay unexpectedly! cause:"+((cause == null) ? "" : " "+cause));
             peerToRelayConnections.remove(clientSocket);
         }
     }
@@ -253,12 +260,12 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
             return;
         }
 
-        if(deadPeers.contains(from))
+        if(disconnectedPeers.contains(from))
             return;
 
-        if(deadPeers.contains(to)) {
+        if(disconnectedPeers.contains(to)) {
             if(type == RelayMessage.Type.CONN_OPEN)
-                sendMessageWithDelay(new RelayConnectionFailMessage(to, from, new Throwable("Peer "+to+" is dead.")), peerToRelayConnections.get(from));
+                sendMessageWithDelay(new RelayConnectionFailMessage(to, from, new IOException("Peer "+to+" is disconnected.")), peerToRelayConnections.get(from));
             return;
         }
 
@@ -339,7 +346,7 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
 
         EventLoop loop = loopPerReceiver.get(receiver);
         loop.schedule(() -> {
-            if(!deadPeers.contains(receiver))
+            if(!disconnectedPeers.contains(receiver))
                 con.sendMessage(msg);
 
         }, delay, TimeUnit.MILLISECONDS);

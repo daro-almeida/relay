@@ -5,18 +5,18 @@ import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
 
-public class RelayPeerDeadMessage extends RelayMessage {
+public class RelayPeerDisconnectedMessage extends RelayMessage {
 
     private final Throwable cause;
 
-    public RelayPeerDeadMessage(Host from, Host to, Throwable cause) {
+    public RelayPeerDisconnectedMessage(Host from, Host to, Throwable cause) {
         super(from, to, Type.PEER_DEAD);
         this.cause = cause;
     }
 
-    public static final IRelaySerializer serializer = new IRelaySerializer<RelayPeerDeadMessage>() {
+    public static final IRelaySerializer serializer = new IRelaySerializer<RelayPeerDisconnectedMessage>() {
         @Override
-        public void serialize(RelayPeerDeadMessage msg, ByteBuf out) throws IOException {
+        public void serialize(RelayPeerDisconnectedMessage msg, ByteBuf out) throws IOException {
             Host.serializer.serialize(msg.from, out);
             Host.serializer.serialize(msg.to, out);
 
@@ -25,7 +25,7 @@ public class RelayPeerDeadMessage extends RelayMessage {
         }
 
         @Override
-        public RelayPeerDeadMessage deserialize(ByteBuf in) throws IOException {
+        public RelayPeerDisconnectedMessage deserialize(ByteBuf in) throws IOException {
             Host from = Host.serializer.deserialize(in);
             Host to = Host.serializer.deserialize(in);
 
@@ -34,7 +34,7 @@ public class RelayPeerDeadMessage extends RelayMessage {
             in.readBytes(strBytes);
             String message = new String(strBytes);
 
-            return new RelayPeerDeadMessage(from, to, new Throwable(message));
+            return new RelayPeerDisconnectedMessage(from, to, new Throwable(message));
         }
     };
 }
