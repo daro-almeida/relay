@@ -295,7 +295,7 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
         logger.debug("Connection accepted message to "+to+" from "+from);
 
         if(!peerToPeerOutConnections.get(to).contains(from)) {
-            logger.error("Connection accept with no out connection from " + from + " to " + to);
+            logger.debug("Connection accept with no out connection from " + from + " to " + to);
             return;
         }
 
