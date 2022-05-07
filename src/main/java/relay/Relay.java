@@ -139,15 +139,15 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
     }
 
     public void disconnectPeer(Host peer) {
-        logger.debug("Disconnecting peer: "+peer);
+        logger.trace("Disconnecting peer: "+peer);
 
         if(!peerToRelayConnections.containsKey(peer)) {
-            logger.debug("Peer to kill not connected to relay.");
+            logger.debug("Disconnecting peer: Peer to kill not connected to relay.");
             return;
         }
 
         if(!disconnectedPeers.add(peer)) {
-            logger.debug("Peer already disconnected.");
+            logger.debug("Disconnecting peer: Peer already disconnected.");
             return;
         }
 
@@ -175,15 +175,15 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
     }
 
     public void reconnnectPeer(Host peer) {
-        logger.debug("Connecting peer: "+ peer);
+        logger.trace("Reconnecting peer: "+ peer);
 
         if (!peerToRelayConnections.containsKey(peer)) {
-            logger.error("Peer to connect not connected to relay.");
+            logger.debug("Reconnecting peer: Peer to connect not connected to relay.");
             return;
         }
 
         if(!disconnectedPeers.remove(peer))
-            logger.debug("Peer already connected.");
+            logger.debug("Reconnecting peer: Peer already connected.");
         else
             //send signal that peer is reconnected to network
             peerToRelayConnections.get(peer).sendMessage(new RelayPeerDisconnectedMessage(peer, peer, new IOException("Node " + peer + " reconnected")));
@@ -195,15 +195,15 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
         try {
             clientSocket = connection.getPeerAttributes().getHost("listen_address");
         } catch (IOException ex) {
-            logger.error("Error parsing LISTEN_ADDRESS_ATTRIBUTE of inbound connection: " + ex.getMessage());
+            logger.fatal("Error parsing LISTEN_ADDRESS_ATTRIBUTE of inbound connection: " + ex.getMessage());
             connection.disconnect();
             return;
         }
 
         if (clientSocket == null) {
-            logger.error("Inbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
+            logger.fatal("Inbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
         } else {
-            logger.debug("InboundConnectionUp " + clientSocket);
+            logger.trace("InboundConnectionUp " + clientSocket);
             Connection<RelayMessage> old = this.peerToRelayConnections.putIfAbsent(clientSocket, connection);
 
             if (old != null)
@@ -222,30 +222,30 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
         try {
             clientSocket = connection.getPeerAttributes().getHost("listen_address");
         } catch (IOException ex) {
-            logger.error("Inbound connection without valid listen address in connectionDown: " + ex.getMessage());
+            logger.fatal("Inbound connection without valid listen address in connectionDown: " + ex.getMessage());
             connection.disconnect();
             return;
         }
 
         if (clientSocket == null) {
-            logger.error("Inbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
+            logger.fatal("Inbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
         } else {
-            logger.error("Peer "+clientSocket+" disconnected from relay unexpectedly! cause:"+((cause == null) ? "" : " "+cause));
+            logger.fatal("Peer "+clientSocket+" disconnected from relay unexpectedly! cause:"+((cause == null) ? "" : " "+cause));
             peerToRelayConnections.remove(clientSocket);
         }
     }
 
     public void serverSocketBind(boolean success, Throwable cause) {
         if (success) {
-            logger.debug("Server socket ready");
+            logger.trace("Server socket ready");
         } else {
-            logger.error("Server socket bind failed: " + cause);
+            logger.fatal("Server socket bind failed: " + cause);
         }
 
     }
 
     public void serverSocketClose(boolean success, Throwable cause) {
-        logger.debug("Server socket closed. " + (success ? "" : "Cause: " + cause));
+        logger.fatal("Server socket closed. " + (success ? "" : "Cause: " + cause));
     }
 
     @Override
@@ -256,7 +256,7 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
 
         Connection<RelayMessage> con = peerToRelayConnections.get(to);
         if(con == null) {
-            logger.error("No relay connection to " + to + " but captured message directed to it");
+            logger.debug("No relay connection to " + to + " but captured message directed to it");
             return;
         }
 
@@ -280,10 +280,10 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
     }
 
     private void handleConnectionClose(RelayConnectionCloseMessage msg, Host from, Host to, Connection<RelayMessage> conTo) {
-        logger.debug("Connection close message to "+to+" from "+from);
+        logger.trace("Connection close message to "+to+" from "+from);
 
         if(!peerToPeerOutConnections.get(from).remove(to)) {
-            logger.error("Connection close with no out connection from " + from + " to " + to);
+            logger.debug("Connection close with no out connection from " + from + " to " + to);
             return;
         }
         peerToPeerInConnections.get(to).remove(from);
@@ -292,7 +292,7 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
     }
 
     private void handleConnectionAccept(RelayConnectionAcceptMessage msg, Host from, Host to, Connection<RelayMessage> conTo) {
-        logger.debug("Connection accepted message to "+to+" from "+from);
+        logger.trace("Connection accepted message to "+to+" from "+from);
 
         if(!peerToPeerOutConnections.get(to).contains(from)) {
             logger.debug("Connection accept with no out connection from " + from + " to " + to);
@@ -303,10 +303,10 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
     }
 
     private void handleAppMessage(RelayAppMessage msg, Host from, Host to, Connection<RelayMessage> conTo) {
-        logger.debug("Message to "+to+" from "+from);
+        logger.trace("Message to "+to+" from "+from);
 
         if(!peerToPeerOutConnections.get(from).contains(to) && !peerToPeerOutConnections.get(to).contains(from)) {
-            logger.error("No connection between "+from+" and "+to);
+            logger.debug("No connection between "+from+" and "+to);
             return;
         }
 
@@ -314,10 +314,10 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
     }
 
     private void handleConnectionRequest(RelayConnectionOpenMessage msg, Host from, Host to, Connection<RelayMessage> conTo) {
-        logger.debug("Connection request to "+to+" from "+from);
+        logger.trace("Connection request to "+to+" from "+from);
 
         if(peerToPeerOutConnections.get(from).contains(to)) {
-            logger.error("Connection request when already existing connection: " + from + "-" + to);
+            logger.debug("Connection request when already existing connection: " + from + "-" + to);
             return;
         }
 
