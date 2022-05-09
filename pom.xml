@@ -4,8 +4,8 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>relay</groupId>
-    <artifactId>relay</artifactId>
+    <groupId>pt.unl.fct.di.novasys</groupId>
+    <artifactId>relay-system</artifactId>
     <version>1.0.0-beta.4</version>
 
     <properties>
@@ -36,9 +36,9 @@
     </repositories>
     <dependencies>
         <dependency>
-            <groupId>com.github.daro-almeida</groupId>
+            <groupId>com.github.pfouto</groupId>
             <artifactId>network-layer</artifactId>
-            <version>master-SNAPSHOT</version>
+            <version>2.0.41</version>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>

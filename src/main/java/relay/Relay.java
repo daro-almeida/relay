@@ -15,10 +15,11 @@ import pt.unl.fct.di.novasys.network.listeners.InConnListener;
 import pt.unl.fct.di.novasys.network.listeners.MessageListener;
 
 import relay.messaging.*;
+import relay.util.Utils;
+import relay.util.matrixes.ShortMatrix;
 
 import java.io.*;
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -61,49 +62,16 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
     private final Map<Host, EventLoop> loopPerReceiver;
 
     //there's probably a better existing structure for this
-    private Map<Host,Map<Host,Short>> trafficMatrix;
+    private ShortMatrix latencyMatrix;
 
-    public Relay(Properties properties, Map<Host,Map<Host,Short>> trafficMatrix) throws IOException {
-        this(properties);
-        this.trafficMatrix = trafficMatrix;
-    }
-
-    public Relay(Properties properties, InputStream hostsConfig, InputStream delayConfig) throws IOException {
+    public Relay(Properties properties, InputStream hostsConfig, InputStream latencyConfig) throws IOException {
         this(properties);
 
-        //initialize traffic matrix ######
-        trafficMatrix = new HashMap<>();
-
-        BufferedReader reader = new BufferedReader(new InputStreamReader(hostsConfig));
-
-        LinkedList<Host> hostList = new LinkedList<>();
-        reader.lines().forEach((String line) -> {
-        String[] parts = line.split(":");
-            try {
-               InetAddress ip = InetAddress.getByName(parts[0]);
-               int port = Integer.parseInt(parts[1]);
-
-               hostList.add(new Host(ip,port));
-            } catch (UnknownHostException e) {
-               logger.error("Bad address in hosts config.");
-               System.exit(1);
-            }
-        });
-
-        reader = new BufferedReader(new InputStreamReader(delayConfig));
-        for (Host hostI: hostList) {
-            String[] strValues = reader.readLine().split(" ");
-            int i = 0;
-            trafficMatrix.put(hostI, new HashMap<>());
-            for (Host hostJ: hostList) {
-                short delay = Short.parseShort(strValues[i++]);
-                trafficMatrix.get(hostI).put(hostJ, delay);
-            }
-        }
-        //######
+        List<Host> hostList = Utils.configToHostList(hostsConfig);
+        latencyMatrix = new ShortMatrix(hostList, latencyConfig);
     }
 
-    public Relay(Properties properties) throws IOException {
+    private Relay(Properties properties) throws IOException {
         InetAddress addr;
         if (properties.containsKey(ADDRESS_KEY))
             addr = InetAddress.getByName(properties.getProperty(ADDRESS_KEY));
@@ -338,7 +306,7 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
 
         short delay;
         try {
-            delay = trafficMatrix.get(sender).get(receiver);
+            delay = latencyMatrix.getProperty(sender, receiver);
         } catch (NullPointerException ex) {
             //delay not defined for pair in matrix or matrix not defined
             delay = DEFAULT_DELAY;
