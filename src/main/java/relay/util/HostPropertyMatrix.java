@@ -31,11 +31,11 @@ public abstract class HostPropertyMatrix<T> {
 
     protected abstract T parseString(String input);
 
-    public T getProperty(Host host1, Host host2) {
+    public final T getProperty(Host host1, Host host2) {
         return propertyMatrix.get(host1).get(host2);
     }
 
-    public T changeProperty(Host host1, Host host2, T newValue) {
+    public final T changeProperty(Host host1, Host host2, T newValue) {
         propertyMatrix.get(host1).put(host2, newValue);
         return propertyMatrix.get(host2).put(host1, newValue);
     }
