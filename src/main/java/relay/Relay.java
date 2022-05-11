@@ -48,10 +48,6 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
 
     public static final short DEFAULT_DELAY = 0;
 
-    private Attributes attributes;
-
-    private final NetworkManager<RelayMessage> network;
-
     private final Map<Host, Connection<RelayMessage>> peerToRelayConnections;
 
     private final Map<Host, Set<Host>> peerToPeerOutConnections;
@@ -89,10 +85,10 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
                 (EventLoopGroup) properties.get(WORKER_GROUP_KEY) :
                 NetworkManager.createNewWorkerGroup(0);
         RelayMessageSerializer tRelayMessageSerializer = new RelayMessageSerializer();
-        network = new NetworkManager<>(tRelayMessageSerializer, this, hbInterval, hbTolerance, connTimeout);
+        NetworkManager<RelayMessage> network = new NetworkManager<>(tRelayMessageSerializer, this, hbInterval, hbTolerance, connTimeout);
         network.createServerSocket(this, listenAddress, this, eventExecutors);
 
-        attributes = new Attributes();
+        Attributes attributes = new Attributes();
         attributes.putShort(AttributeValidator.CHANNEL_MAGIC_ATTRIBUTE, PROXY_MAGIC_NUMBER);
         attributes.putHost(LISTEN_ADDRESS_ATTRIBUTE, listenAddress);
 
