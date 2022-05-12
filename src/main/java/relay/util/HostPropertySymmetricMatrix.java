@@ -10,21 +10,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public abstract class HostPropertyMatrix<T> {
+public abstract class HostPropertySymmetricMatrix<T> {
 
-    private final Map<Host, Map<Host,T>> propertyMatrix;
+    private final Map<SymPair<Host>,T> propertyMatrix;
 
-    public HostPropertyMatrix(List<Host> hostList, InputStream matrixConfig) throws IOException {
-        propertyMatrix = new ConcurrentHashMap<>();
+    public HostPropertySymmetricMatrix(List<Host> hostList, InputStream matrixConfig) throws IOException {
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(matrixConfig));
+
+        propertyMatrix = new ConcurrentHashMap<>(); //reader.lines.count() ?
+
         for (Host hostI: hostList) {
             String[] strValues = reader.readLine().split(" ");
             int j = 0;
-            propertyMatrix.put(hostI, new ConcurrentHashMap<>());
             for (Host hostJ: hostList) {
                 T property = parseString(strValues[j++]);
-                propertyMatrix.get(hostI).put(hostJ, property);
+                propertyMatrix.put(new SymPair<>(hostI,hostJ), property);
             }
         }
     }
@@ -32,11 +33,10 @@ public abstract class HostPropertyMatrix<T> {
     protected abstract T parseString(String input);
 
     public final T getProperty(Host host1, Host host2) {
-        return propertyMatrix.get(host1).get(host2);
+        return propertyMatrix.get(new SymPair<>(host1, host2));
     }
 
     public final T changeProperty(Host host1, Host host2, T newValue) {
-        propertyMatrix.get(host1).put(host2, newValue);
-        return propertyMatrix.get(host2).put(host1, newValue);
+        return propertyMatrix.put(new SymPair<>(host1, host2), newValue);
     }
 }
