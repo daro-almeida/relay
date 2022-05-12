@@ -300,14 +300,9 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
         Host sender = msg.getFrom();
         Host receiver = msg.getTo();
 
-        short delay;
-        try {
-            delay = latencyMatrix.getProperty(sender, receiver);
-        } catch (NullPointerException ex) {
-            //delay not defined for pair in matrix or matrix not defined
+        Short delay = latencyMatrix.getProperty(sender, receiver);
+        if(delay == null)
             delay = DEFAULT_DELAY;
-        }
-
         EventLoop loop = loopPerReceiver.get(receiver);
         loop.schedule(() -> {
             if(!disconnectedPeers.contains(receiver))
