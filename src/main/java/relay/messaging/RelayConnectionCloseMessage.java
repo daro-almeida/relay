@@ -14,27 +14,26 @@ public class RelayConnectionCloseMessage extends RelayMessage {
         this.cause = cause;
     }
 
+    public RelayConnectionCloseMessage(int seqN, Host from, Host to, Throwable cause) {
+        super(seqN, from, to, Type.CONN_CLOSE);
+        this.cause = cause;
+    }
+
     public static final IRelaySerializer serializer = new IRelaySerializer<RelayConnectionCloseMessage>() {
         @Override
         public void serialize(RelayConnectionCloseMessage msg, ByteBuf out) throws IOException {
-            Host.serializer.serialize(msg.from, out);
-            Host.serializer.serialize(msg.to, out);
-
             out.writeInt(msg.cause.getMessage().getBytes().length);
             out.writeBytes(msg.cause.getMessage().getBytes());
         }
 
         @Override
-        public RelayConnectionCloseMessage deserialize(ByteBuf in) throws IOException {
-            Host from = Host.serializer.deserialize(in);
-            Host to = Host.serializer.deserialize(in);
-
+        public RelayConnectionCloseMessage deserialize(int seqN, Host from, Host to, ByteBuf in) throws IOException {
             int size = in.readInt();
             byte[] strBytes = new byte[size];
             in.readBytes(strBytes);
             String message = new String(strBytes);
 
-            return new RelayConnectionCloseMessage(from, to, new Throwable(message));
+            return new RelayConnectionCloseMessage(seqN, from, to, new Throwable(message));
         }
     };
 }

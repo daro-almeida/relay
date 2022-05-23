@@ -7,11 +7,10 @@ import java.io.IOException;
 
 public class RelayConnectionFailMessage extends RelayMessage {
 
-    private Throwable cause;
+    private final Throwable cause;
 
     public RelayConnectionFailMessage(Host from, Host to, Throwable cause) {
         super(from, to, Type.CONN_FAIL);
-
         this.cause = cause;
     }
 
@@ -22,18 +21,12 @@ public class RelayConnectionFailMessage extends RelayMessage {
     public static final IRelaySerializer serializer = new IRelaySerializer<RelayConnectionFailMessage>() {
         @Override
         public void serialize(RelayConnectionFailMessage msg, ByteBuf out) throws IOException {
-            Host.serializer.serialize(msg.from, out);
-            Host.serializer.serialize(msg.to, out);
-
             out.writeInt(msg.cause.getMessage().getBytes().length);
             out.writeBytes(msg.cause.getMessage().getBytes());
         }
 
         @Override
-        public RelayConnectionFailMessage deserialize(ByteBuf in) throws IOException {
-            Host from = Host.serializer.deserialize(in);
-            Host to = Host.serializer.deserialize(in);
-
+        public RelayConnectionFailMessage deserialize(int seqN, Host from, Host to, ByteBuf in) throws IOException {
             int size = in.readInt();
             byte[] strBytes = new byte[size];
             in.readBytes(strBytes);

@@ -217,8 +217,6 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
         Host from = msg.getFrom();
         Host to = msg.getTo();
 
-        logger.debug("Received message to "+to+" from "+from);
-
         RelayMessage.Type type = msg.getType();
 
         Connection<RelayMessage> con = peerToRelayConnections.get(to);
@@ -310,7 +308,6 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
         loop.schedule(() -> {
             if(!disconnectedPeers.contains(receiver)) {
                 con.sendMessage(msg);
-                logger.debug("Sent message to "+msg.getTo()+" from "+msg.getFrom());
             }
         }, delay, TimeUnit.MILLISECONDS);
     }

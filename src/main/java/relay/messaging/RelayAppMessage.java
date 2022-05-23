@@ -10,30 +10,28 @@ public class RelayAppMessage extends RelayMessage {
 
     public RelayAppMessage(Host from, Host to, byte[] payload) {
         super(from,to,Type.APP_MSG);
+        this.payload = payload;
+    }
 
+    public RelayAppMessage(int seqN, Host from, Host to, byte[] payload) {
+        super(seqN,from,to,Type.APP_MSG);
         this.payload = payload;
     }
 
     public static final IRelaySerializer serializer = new IRelaySerializer<RelayAppMessage>() {
         @Override
         public void serialize(RelayAppMessage msg, ByteBuf out) throws IOException {
-            Host.serializer.serialize(msg.from, out);
-            Host.serializer.serialize(msg.to, out);
-
             out.writeBytes(msg.payload);
         }
 
         @Override
-        public RelayAppMessage deserialize(ByteBuf in) throws IOException {
-            Host from = Host.serializer.deserialize(in);
-            Host to = Host.serializer.deserialize(in);
-
+        public RelayAppMessage deserialize(int seqN, Host from, Host to, ByteBuf in) throws IOException {
             int msgSize = in.getInt(in.readerIndex());
             byte[] payload = new byte[msgSize];
             in.skipBytes(4);
             in.readBytes(payload);
 
-            return new RelayAppMessage(from, to, payload);
+            return new RelayAppMessage(seqN, from, to, payload);
         }
     };
 }

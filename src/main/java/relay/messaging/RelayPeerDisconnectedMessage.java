@@ -17,18 +17,12 @@ public class RelayPeerDisconnectedMessage extends RelayMessage {
     public static final IRelaySerializer serializer = new IRelaySerializer<RelayPeerDisconnectedMessage>() {
         @Override
         public void serialize(RelayPeerDisconnectedMessage msg, ByteBuf out) throws IOException {
-            Host.serializer.serialize(msg.from, out);
-            Host.serializer.serialize(msg.to, out);
-
             out.writeInt(msg.cause.getMessage().getBytes().length);
             out.writeBytes(msg.cause.getMessage().getBytes());
         }
 
         @Override
-        public RelayPeerDisconnectedMessage deserialize(ByteBuf in) throws IOException {
-            Host from = Host.serializer.deserialize(in);
-            Host to = Host.serializer.deserialize(in);
-
+        public RelayPeerDisconnectedMessage deserialize(int seqN, Host from, Host to, ByteBuf in) throws IOException {
             int size = in.readInt();
             byte[] strBytes = new byte[size];
             in.readBytes(strBytes);

@@ -11,19 +11,19 @@ public class RelayConnectionOpenMessage extends RelayMessage {
         super(from, to, Type.CONN_OPEN);
     }
 
+    public RelayConnectionOpenMessage(int seqN, Host from, Host to) {
+        super(seqN, from, to, Type.CONN_OPEN);
+    }
+
     public static final IRelaySerializer serializer = new IRelaySerializer<RelayConnectionOpenMessage>() {
         @Override
         public void serialize(RelayConnectionOpenMessage msg, ByteBuf out) throws IOException {
-            Host.serializer.serialize(msg.from, out);
-            Host.serializer.serialize(msg.to, out);
+            //nothing to do here
         }
 
         @Override
-        public RelayConnectionOpenMessage deserialize(ByteBuf in) throws IOException {
-            Host from = Host.serializer.deserialize(in);
-            Host to = Host.serializer.deserialize(in);
-            
-            return new RelayConnectionOpenMessage(from, to);
+        public RelayConnectionOpenMessage deserialize(int seqN, Host from, Host to, ByteBuf in) throws IOException {
+            return new RelayConnectionOpenMessage(seqN, from, to);
         }
     };
 }
