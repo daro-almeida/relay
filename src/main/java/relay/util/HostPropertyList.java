@@ -12,25 +12,25 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class HostPropertyList<T> {
 
-    private final Map<Host, T> propertyList;
+	private final Map<Host, T> propertyList;
 
-    public HostPropertyList(List<Host> hostList, InputStream listConfig) throws IOException {
-        propertyList = new ConcurrentHashMap<>();
+	public HostPropertyList(List<Host> hostList, InputStream listConfig) throws IOException {
+		propertyList = new ConcurrentHashMap<>();
 
-        BufferedReader reader = new BufferedReader(new InputStreamReader(listConfig));
-        for (Host host: hostList) {
-            String strProperty = reader.readLine();
-            propertyList.put(host, parseString(strProperty));
-        }
-    }
+		BufferedReader reader = new BufferedReader(new InputStreamReader(listConfig));
+		for (Host host : hostList) {
+			String strProperty = reader.readLine();
+			propertyList.put(host, parseString(strProperty));
+		}
+	}
 
-    protected abstract T parseString(String input);
+	protected abstract T parseString(String input);
 
-    public final T getProperty(Host host) {
-        return propertyList.get(host);
-    }
+	public final T getProperty(Host host) {
+		return propertyList.get(host);
+	}
 
-    public final T changeProperty(Host host, T newValue) {
-        return propertyList.put(host, newValue);
-    }
+	public final T changeProperty(Host host, T newValue) {
+		return propertyList.put(host, newValue);
+	}
 }

@@ -7,23 +7,23 @@ import java.io.IOException;
 
 public class RelayConnectionAcceptMessage extends RelayMessage {
 
-    public RelayConnectionAcceptMessage(Host from, Host to) {
-        super(from, to, Type.CONN_ACCEPT);
-    }
+	public static final IRelaySerializer serializer = new IRelaySerializer<RelayConnectionAcceptMessage>() {
+		@Override
+		public void serialize(RelayConnectionAcceptMessage msg, ByteBuf out) throws IOException {
+			//nothing to do here
+		}
 
-    public RelayConnectionAcceptMessage(int seqN, Host from, Host to) {
-        super(seqN, from, to, Type.CONN_ACCEPT);
-    }
+		@Override
+		public RelayConnectionAcceptMessage deserialize(int seqN, Host from, Host to, ByteBuf in) throws IOException {
+			return new RelayConnectionAcceptMessage(seqN, from, to);
+		}
+	};
 
-    public static final IRelaySerializer serializer = new IRelaySerializer<RelayConnectionAcceptMessage>() {
-        @Override
-        public void serialize(RelayConnectionAcceptMessage msg, ByteBuf out) throws IOException {
-            //nothing to do here
-        }
+	public RelayConnectionAcceptMessage(Host from, Host to) {
+		super(from, to, Type.CONN_ACCEPT);
+	}
 
-        @Override
-        public RelayConnectionAcceptMessage deserialize(int seqN, Host from, Host to, ByteBuf in) throws IOException {
-            return new RelayConnectionAcceptMessage(seqN, from, to);
-        }
-    };
+	public RelayConnectionAcceptMessage(int seqN, Host from, Host to) {
+		super(seqN, from, to, Type.CONN_ACCEPT);
+	}
 }

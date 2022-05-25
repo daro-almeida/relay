@@ -9,12 +9,12 @@ import java.util.List;
 
 public class ShortMatrix extends HostPropertySymmetricMatrix<Short> {
 
-    public ShortMatrix(List<Host> hostList, InputStream matrixConfig) throws IOException {
-        super(hostList, matrixConfig);
-    }
+	public ShortMatrix(List<Host> hostList, InputStream matrixConfig) throws IOException {
+		super(hostList, matrixConfig);
+	}
 
-    @Override
-    protected Short parseString(String input) {
-        return Short.parseShort(input);
-    }
+	@Override
+	protected Short parseString(String input) {
+		return Short.parseShort(input);
+	}
 }

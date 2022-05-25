@@ -7,33 +7,32 @@ import java.io.IOException;
 
 public class RelayConnectionCloseMessage extends RelayMessage {
 
-    private final Throwable cause;
+	public static final IRelaySerializer serializer = new IRelaySerializer<RelayConnectionCloseMessage>() {
+		@Override
+		public void serialize(RelayConnectionCloseMessage msg, ByteBuf out) throws IOException {
+			out.writeInt(msg.cause.getMessage().getBytes().length);
+			out.writeBytes(msg.cause.getMessage().getBytes());
+		}
 
-    public RelayConnectionCloseMessage(Host from, Host to, Throwable cause) {
-        super(from, to, Type.CONN_CLOSE);
-        this.cause = cause;
-    }
+		@Override
+		public RelayConnectionCloseMessage deserialize(int seqN, Host from, Host to, ByteBuf in) throws IOException {
+			int size = in.readInt();
+			byte[] strBytes = new byte[size];
+			in.readBytes(strBytes);
+			String message = new String(strBytes);
 
-    public RelayConnectionCloseMessage(int seqN, Host from, Host to, Throwable cause) {
-        super(seqN, from, to, Type.CONN_CLOSE);
-        this.cause = cause;
-    }
+			return new RelayConnectionCloseMessage(seqN, from, to, new Throwable(message));
+		}
+	};
+	private final Throwable cause;
 
-    public static final IRelaySerializer serializer = new IRelaySerializer<RelayConnectionCloseMessage>() {
-        @Override
-        public void serialize(RelayConnectionCloseMessage msg, ByteBuf out) throws IOException {
-            out.writeInt(msg.cause.getMessage().getBytes().length);
-            out.writeBytes(msg.cause.getMessage().getBytes());
-        }
+	public RelayConnectionCloseMessage(Host from, Host to, Throwable cause) {
+		super(from, to, Type.CONN_CLOSE);
+		this.cause = cause;
+	}
 
-        @Override
-        public RelayConnectionCloseMessage deserialize(int seqN, Host from, Host to, ByteBuf in) throws IOException {
-            int size = in.readInt();
-            byte[] strBytes = new byte[size];
-            in.readBytes(strBytes);
-            String message = new String(strBytes);
-
-            return new RelayConnectionCloseMessage(seqN, from, to, new Throwable(message));
-        }
-    };
+	public RelayConnectionCloseMessage(int seqN, Host from, Host to, Throwable cause) {
+		super(seqN, from, to, Type.CONN_CLOSE);
+		this.cause = cause;
+	}
 }
