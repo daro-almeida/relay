@@ -1,7 +1,5 @@
 package relay;
 
-import io.netty.channel.DefaultEventLoop;
-import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -48,8 +46,6 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
 
 	private final Set<Host> disconnectedPeers;
 
-	private final Map<Host, EventLoop> loopPerReceiver;
-
 	//there's probably a better existing structure for this
 	private ShortMatrix latencyMatrix;
 
@@ -62,10 +58,8 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
 
 	private Relay(Properties properties) throws IOException {
 		InetAddress addr;
-		if (properties.containsKey(ADDRESS_KEY))
-			addr = InetAddress.getByName(properties.getProperty(ADDRESS_KEY));
-		else
-			throw new IllegalArgumentException(NAME + " requires binding address");
+		if (properties.containsKey(ADDRESS_KEY)) addr = InetAddress.getByName(properties.getProperty(ADDRESS_KEY));
+		else throw new IllegalArgumentException(NAME + " requires binding address");
 
 		int port = Integer.parseInt(properties.getProperty(PORT_KEY, DEFAULT_PORT));
 		int hbInterval = Integer.parseInt(properties.getProperty(HEARTBEAT_INTERVAL_KEY, DEFAULT_HB_INTERVAL));
@@ -74,9 +68,7 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
 
 		Host listenAddress = new Host(addr, port);
 
-		EventLoopGroup eventExecutors = properties.containsKey(WORKER_GROUP_KEY) ?
-				(EventLoopGroup) properties.get(WORKER_GROUP_KEY) :
-				NetworkManager.createNewWorkerGroup(0);
+		EventLoopGroup eventExecutors = properties.containsKey(WORKER_GROUP_KEY) ? (EventLoopGroup) properties.get(WORKER_GROUP_KEY) : NetworkManager.createNewWorkerGroup(0);
 		RelayMessageSerializer tRelayMessageSerializer = new RelayMessageSerializer();
 		NetworkManager<RelayMessage> network = new NetworkManager<>(tRelayMessageSerializer, this, hbInterval, hbTolerance, connTimeout);
 		network.createServerSocket(this, listenAddress, this, eventExecutors);
@@ -91,8 +83,6 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
 		peerToPeerInConnections = new ConcurrentHashMap<>();
 
 		disconnectedPeers = new ConcurrentSkipListSet<>();
-
-		loopPerReceiver = new ConcurrentHashMap<>();
 	}
 
 	public void disconnectPeer(Host peer) {
@@ -121,8 +111,7 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
 
 	private void sendPeerDisconnectNotifications(Host peer, Map<Host, Set<Host>> peerToPeerConnections) {
 		for (Host connectedPeer : peerToPeerConnections.keySet()) {
-			if (connectedPeer.equals(peer))
-				continue;
+			if (connectedPeer.equals(peer)) continue;
 
 			Set<Host> inConnections = peerToPeerConnections.get(connectedPeer);
 			if (inConnections.remove(peer)) {
@@ -139,8 +128,7 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
 			return;
 		}
 
-		if (!disconnectedPeers.remove(peer))
-			logger.trace("Reconnecting peer: Peer already connected.");
+		if (!disconnectedPeers.remove(peer)) logger.trace("Reconnecting peer: Peer already connected.");
 		else
 			//send signal that peer is reconnected to network
 			peerToRelayConnections.get(peer).sendMessage(new RelayPeerDisconnectedMessage(peer, peer, new IOException("Node " + peer + " reconnected")));
@@ -168,8 +156,6 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
 
 			peerToPeerOutConnections.put(clientSocket, new HashSet<>());
 			peerToPeerInConnections.put(clientSocket, new HashSet<>());
-
-			loopPerReceiver.put(clientSocket, new DefaultEventLoop());
 		}
 	}
 
@@ -218,8 +204,7 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
 			return;
 		}
 
-		if (disconnectedPeers.contains(from))
-			return;
+		if (disconnectedPeers.contains(from)) return;
 
 		if (disconnectedPeers.contains(to)) {
 			if (type == RelayMessage.Type.CONN_OPEN)
@@ -304,10 +289,8 @@ public class Relay implements InConnListener<RelayMessage>, MessageListener<Rela
 		Host receiver = msg.getTo();
 
 		Short delay = latencyMatrix.getProperty(sender, receiver);
-		if (delay == null)
-			delay = DEFAULT_DELAY;
-		EventLoop loop = loopPerReceiver.get(receiver);
-		loop.schedule(() -> {
+		if (delay == null) delay = DEFAULT_DELAY;
+		con.getLoop().schedule(() -> {
 			if (!disconnectedPeers.contains(receiver)) {
 				con.sendMessage(msg);
 			}
