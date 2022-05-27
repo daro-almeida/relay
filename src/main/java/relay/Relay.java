@@ -43,9 +43,13 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	public static final String DEFAULT_HB_INTERVAL = "0";
 	public static final String DEFAULT_HB_TOLERANCE = "0";
 	public static final String DEFAULT_CONNECT_TIMEOUT = "1000";
-	public static final short DEFAULT_DELAY = 0;
+
+	private static final Short DEFAULT_DELAY = 0;
+	private static final Short AVERAGE_ERROR = 0;
+
 	private static final Logger logger = LogManager.getLogger(Relay.class);
 	private static final Short PROXY_MAGIC_NUMBER = 0x1369;
+
 
 	private final NetworkManager<RelayMessage> network;
 	private final Attributes attributes;
@@ -150,9 +154,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		properties.put(RELAY_ID, args[4]);
 
 
-		try (FileInputStream hostsConfig = new FileInputStream(args[5]);
-			 FileInputStream relayConfig = new FileInputStream(args[6]);
-			 FileInputStream latencyConfig = new FileInputStream(args[7])) {
+		try (FileInputStream hostsConfig = new FileInputStream(args[5]); FileInputStream relayConfig = new FileInputStream(args[6]); FileInputStream latencyConfig = new FileInputStream(args[7])) {
 
 			new Relay(properties, hostsConfig, relayConfig, latencyConfig);
 		}
@@ -205,10 +207,8 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 			if (inConnections.remove(peer)) {
 				RelayMessage msg = new RelayPeerDisconnectedMessage(peer, entry.getKey(), new IOException("Node " + peer + " disconnected"));
 				Host relay = assignedRelayPerPeer.get(peer);
-				if (!relay.equals(self))
-					otherRelayConnections.get(relay).sendMessage(msg);
-				else
-					sendMessageWithDelay(msg, peerToRelayConnections.get(entry.getKey()));
+				if (!relay.equals(self)) otherRelayConnections.get(relay).sendMessage(msg);
+				else sendMessageWithDelay(msg, peerToRelayConnections.get(entry.getKey()));
 			}
 		}
 	}
@@ -347,8 +347,12 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		if (disconnectedPeers.contains(from)) return;
 
 		if (disconnectedPeers.contains(to)) {
-			if (type == RelayMessage.Type.CONN_OPEN)
-				sendMessageWithDelay(new RelayConnectionFailMessage(to, from, new IOException("Peer " + to + " is disconnected.")), peerToRelayConnections.get(from));
+			if (type == RelayMessage.Type.CONN_OPEN) {
+				RelayMessage failMessage = new RelayConnectionFailMessage(to, from, new IOException("Peer " + to + " is disconnected."));
+				relay = assignedRelayPerPeer.get(from);
+				if (relay.equals(self)) sendMessageWithDelay(failMessage, peerToRelayConnections.get(from));
+				else otherRelayConnections.get(relay).sendMessage(failMessage);
+			}
 			return;
 		}
 
@@ -367,7 +371,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 				break;
 			case CONN_FAIL:
 			case PEER_DEAD:
-				throw new AssertionError("Got " + type.name() + " in single relay implementation");
+				sendMessageWithDelay(msg, con);
 		}
 	}
 
@@ -434,7 +438,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 			if (!disconnectedPeers.contains(receiver)) {
 				con.sendMessage(msg);
 			}
-		}, delay, TimeUnit.MILLISECONDS);
+		}, (long) delay - AVERAGE_ERROR, TimeUnit.MILLISECONDS);
 	}
 
 }
