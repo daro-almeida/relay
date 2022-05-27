@@ -4,7 +4,8 @@ import java.util.Objects;
 
 public class SymPair<T extends Comparable<T>> {
 
-	private final T first, second;
+	private final T first;
+	private final T second;
 
 	public SymPair(T first, T second) {
 		this.first = first;

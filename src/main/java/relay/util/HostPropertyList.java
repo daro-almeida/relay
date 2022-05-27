@@ -14,7 +14,7 @@ public abstract class HostPropertyList<T> {
 
 	private final Map<Host, T> propertyList;
 
-	public HostPropertyList(List<Host> hostList, InputStream listConfig) throws IOException {
+	protected HostPropertyList(List<Host> hostList, InputStream listConfig) throws IOException {
 		propertyList = new ConcurrentHashMap<>();
 
 		BufferedReader reader = new BufferedReader(new InputStreamReader(listConfig));

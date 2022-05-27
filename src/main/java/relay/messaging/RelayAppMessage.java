@@ -15,11 +15,11 @@ public class RelayAppMessage extends RelayMessage {
 		@Override
 		public RelayAppMessage deserialize(int seqN, Host from, Host to, ByteBuf in) throws IOException {
 			int msgSize = in.getInt(in.readerIndex());
-			byte[] payload = new byte[msgSize];
+			byte[] content = new byte[msgSize];
 			in.skipBytes(4);
-			in.readBytes(payload);
+			in.readBytes(content);
 
-			return new RelayAppMessage(seqN, from, to, payload);
+			return new RelayAppMessage(seqN, from, to, content);
 		}
 	};
 	private final byte[] payload;

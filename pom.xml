@@ -5,8 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>pt.unl.fct.di.novasys</groupId>
-    <artifactId>relay-system</artifactId>
-    <version>1.0.0-beta.4</version>
+    <artifactId>relay</artifactId>
+    <version>master-SNAPSHOT</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -53,7 +53,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>4.1.76.Final</version>
+            <version>4.1.77.Final</version>
         </dependency>
     </dependencies>
 

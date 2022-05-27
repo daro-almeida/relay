@@ -7,15 +7,18 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 public class Utils {
 
-	public static List<Host> configToHostList(InputStream hostsConfig) throws UnknownHostException {
+	private Utils() {
+	}
+
+	public static List<Host> configToHostList(InputStream hostsConfig) {
 		BufferedReader reader = new BufferedReader(new InputStreamReader(hostsConfig));
 
-		LinkedList<Host> hostList = new LinkedList<>();
+		List<Host> hostList = new ArrayList<>((int) reader.lines().count());
 		reader.lines().forEach((String line) -> {
 			String[] parts = line.split(":");
 

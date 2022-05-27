@@ -13,6 +13,10 @@ public class ShortMatrix extends HostPropertySymmetricMatrix<Short> {
 		super(hostList, matrixConfig);
 	}
 
+	public ShortMatrix(List<Host> hostList, InputStream matrixConfig, int relayID, int numRelays) throws IOException {
+		super(hostList, matrixConfig, relayID, numRelays);
+	}
+
 	@Override
 	protected Short parseString(String input) {
 		return Short.parseShort(input);

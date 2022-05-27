@@ -8,17 +8,18 @@ import java.io.IOException;
 public abstract class RelayMessage {
 
 	private final Type type;
-	protected Host from, to;
+	protected Host from;
+	protected Host to;
 	protected int seqN;
 
-	public RelayMessage(Host from, Host to, Type type) {
+	protected RelayMessage(Host from, Host to, Type type) {
 		this.seqN = -1;
 		this.type = type;
 		this.from = from;
 		this.to = to;
 	}
 
-	public RelayMessage(int seqN, Host from, Host to, Type type) {
+	protected RelayMessage(int seqN, Host from, Host to, Type type) {
 		this.seqN = seqN;
 		this.type = type;
 		this.from = from;
