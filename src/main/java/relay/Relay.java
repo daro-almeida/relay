@@ -344,8 +344,6 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 			return;
 		}
 
-		if (disconnectedPeers.contains(from)) return;
-
 		if (disconnectedPeers.contains(to)) {
 			if (type == RelayMessage.Type.CONN_OPEN) {
 				RelayMessage failMessage = new RelayConnectionFailMessage(to, from, new IOException("Peer " + to + " is disconnected."));
