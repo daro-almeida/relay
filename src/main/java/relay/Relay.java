@@ -23,14 +23,9 @@ import java.io.InputStream;
 import java.net.InetAddress;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.TimeUnit;
 
 public class Relay implements InConnListener<RelayMessage>, OutConnListener<RelayMessage>, MessageListener<RelayMessage>, AttributeValidator {
-
-	static {
-		System.setProperty("log4j.configurationFile", "log4j2.xml");
-	}
 
 	public static final String NAME = "Relay";
 	public static final String ADDRESS_KEY = "address";
@@ -47,21 +42,22 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	public static final String DEFAULT_HB_INTERVAL = "0";
 	public static final String DEFAULT_HB_TOLERANCE = "0";
 	public static final String DEFAULT_CONNECT_TIMEOUT = "1000";
-
 	private static final Short DEFAULT_DELAY = 0;
 	private static final Short AVERAGE_ERROR = 0;
-
 	private static final Logger logger = LogManager.getLogger(Relay.class);
 	private static final Short PROXY_MAGIC_NUMBER = 0x1369;
 
+	static {
+		System.setProperty("log4j.configurationFile", "log4j2.xml");
+	}
 
 	private final NetworkManager<RelayMessage> network;
 	private final Attributes attributes;
 
 	private final Map<Host, Connection<RelayMessage>> peerToRelayConnections;
 
-	private final Map<Host, Set<Host>> peerToPeerOutConnections;
-	private final Map<Host, Set<Host>> peerToPeerInConnections;
+	// left -> right
+	private final Set<Pair<Host, Host>> peerToPeerConnections;
 
 	private final Set<Host> disconnectedPeers;
 
@@ -122,10 +118,9 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 		peerToRelayConnections = new HashMap<>();
 
-		peerToPeerOutConnections = new ConcurrentHashMap<>();
-		peerToPeerInConnections = new ConcurrentHashMap<>();
+		peerToPeerConnections = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
-		disconnectedPeers = new ConcurrentSkipListSet<>();
+		disconnectedPeers = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
 		otherRelayConnections = new HashMap<>();
 		assignedRelayPerPeer = new HashMap<>();
@@ -195,25 +190,27 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		//send disconnect notification instantly to peer getting disconnected, it is assumed it is connected to this relay
 		peerToRelayConnections.get(peer).sendMessage(new RelayPeerDisconnectedMessage(peer, peer, new IOException("Node " + peer + " disconnected")));
 
-		sendPeerDisconnectNotifications(peer, peerToPeerOutConnections);
-
-		sendPeerDisconnectNotifications(peer, peerToPeerInConnections);
-
-		peerToPeerOutConnections.put(peer, new HashSet<>());
-		peerToPeerInConnections.put(peer, new HashSet<>());
+		sendPeerDisconnectNotifications(peer);
 	}
 
-	private void sendPeerDisconnectNotifications(Host peer, Map<Host, Set<Host>> peerToPeerConnections) {
-		for (Map.Entry<Host, Set<Host>> entry : peerToPeerConnections.entrySet()) {
-			if (entry.getKey().equals(peer)) continue;
+	private void sendPeerDisconnectNotifications(Host peer) {
+		Iterator<Pair<Host, Host>> it = peerToPeerConnections.iterator();
 
-			Set<Host> inConnections = entry.getValue();
-			if (inConnections.remove(peer)) {
-				RelayMessage msg = new RelayPeerDisconnectedMessage(peer, entry.getKey(), new IOException("Node " + peer + " disconnected"));
-				Host relay = assignedRelayPerPeer.get(peer);
-				if (!relay.equals(self)) otherRelayConnections.get(relay).sendMessage(msg);
-				else sendMessageWithDelay(msg, peerToRelayConnections.get(entry.getKey()));
-			}
+		while (it.hasNext()) {
+			Pair<Host, Host> pair = it.next();
+			Host other;
+			if (pair.getLeft().equals(peer)) {
+				other = pair.getRight();
+			} else if (pair.getRight().equals(peer)) {
+				other = pair.getLeft();
+			} else continue;
+
+			RelayMessage msg = new RelayPeerDisconnectedMessage(peer, other, new IOException("Node " + peer + " disconnected"));
+			Host relay = assignedRelayPerPeer.get(other);
+			if (!relay.equals(self)) otherRelayConnections.get(relay).sendMessage(msg);
+			else sendMessageWithDelay(msg, peerToRelayConnections.get(other));
+
+			it.remove();
 		}
 	}
 
@@ -246,12 +243,10 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 			logger.trace("InboundConnectionUp {}", clientSocket);
 			Connection<RelayMessage> old;
-			if (relayList.contains(clientSocket)) old = otherRelayConnections.putIfAbsent(clientSocket, connection);
-			else {
+			if (relayList.contains(clientSocket))
+				old = otherRelayConnections.putIfAbsent(clientSocket, connection);
+			else
 				old = peerToRelayConnections.putIfAbsent(clientSocket, connection);
-				peerToPeerOutConnections.put(clientSocket, new HashSet<>());
-				peerToPeerInConnections.put(clientSocket, new HashSet<>());
-			}
 
 			if (old != null)
 				throw new RuntimeException("Double incoming connection from: " + clientSocket + " (" + connection.getPeer() + ")");
@@ -380,11 +375,10 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	private void handleConnectionClose(RelayConnectionCloseMessage msg, Host from, Host to, Connection<RelayMessage> conTo) {
 		logger.trace("Connection close message to {} from {}", to, from);
 
-		if (!peerToPeerOutConnections.get(from).remove(to)) {
+		if (!peerToPeerConnections.remove(new ImmutablePair<>(from, to))) {
 			logger.trace("Connection close with no out connection from {} to {}", from, to);
 			return;
 		}
-		peerToPeerInConnections.get(to).remove(from);
 
 		sendMessageWithDelay(msg, conTo);
 	}
@@ -392,7 +386,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	private void handleConnectionAccept(RelayConnectionAcceptMessage msg, Host from, Host to, Connection<RelayMessage> conTo) {
 		logger.trace("Connection accepted message to {} from {}", to, from);
 
-		if (!peerToPeerOutConnections.get(to).contains(from)) {
+		if (!peerToPeerConnections.contains(new ImmutablePair<>(to, from))) {
 			logger.trace("Connection accept with no out connection from {} to {}", from, to);
 			return;
 		}
@@ -403,7 +397,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	private void handleAppMessage(RelayAppMessage msg, Host from, Host to, Connection<RelayMessage> conTo) {
 		logger.trace("Message to {} from {}", to, from);
 
-		if (!peerToPeerOutConnections.get(from).contains(to) && !peerToPeerOutConnections.get(to).contains(from)) {
+		if (!peerToPeerConnections.contains(new ImmutablePair<>(from, to)) && !peerToPeerConnections.contains(new ImmutablePair<>(to, from))) {
 			logger.trace("No connection between {} and {}", from, to);
 			return;
 		}
@@ -414,14 +408,14 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	private void handleConnectionRequest(RelayConnectionOpenMessage msg, Host from, Host to, Connection<RelayMessage> conTo) {
 		logger.trace("Connection request to {} from {}", to, from);
 
-		if (peerToPeerOutConnections.get(from).contains(to)) {
+		Pair<Host, Host> pair = new ImmutablePair<>(from, to);
+		if (peerToPeerConnections.contains(new ImmutablePair<>(from, to))) {
 			logger.trace("Connection request when already existing connection: {}-{}", from, to);
 			return;
 		}
 
 		sendMessageWithDelay(msg, conTo);
-		peerToPeerOutConnections.get(from).add(to);
-		peerToPeerInConnections.get(to).add(from);
+		peerToPeerConnections.add(pair);
 	}
 
 	@Override
