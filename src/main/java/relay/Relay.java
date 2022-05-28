@@ -77,7 +77,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	public Relay(Properties properties, InputStream hostsConfig, InputStream relayConfig, InputStream latencyConfig) throws IOException {
 		this(properties, hostsConfig, latencyConfig);
 
-		relayList = Utils.configToHostList(relayConfig);
+		relayList = Utils.configToHostList(relayConfig, numRelays);
 
 		assignPeersToRelays();
 
@@ -127,12 +127,10 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		assignedRelayPerPeer = new HashMap<>();
 
 		relayList = new ArrayList<>();
-		peerList = Utils.configToHostList(hostsConfig);
 
-		numProcesses = Integer.parseInt(properties.getProperty(NUM_PROCESSES, String.valueOf(peerList.size())));
-
+		numProcesses = Integer.parseInt(properties.getProperty(NUM_PROCESSES, "0"));
+		peerList = Utils.configToHostList(hostsConfig, numProcesses);
 		Pair<Integer, Integer> range = peerRange(numProcesses, relayID, numRelays);
-
 		latencyMatrix = new ShortMatrix(peerList, latencyConfig, range.getLeft(), range.getRight());
 	}
 
@@ -170,7 +168,9 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		for (int i = 0; i < numRelays; i++) {
 			Pair<Integer, Integer> range = peerRange(numProcesses, i, numRelays);
 			for (int j = range.getLeft(); j <= range.getRight(); j++) {
-				assignedRelayPerPeer.put(peerList.get(j), relayList.get(i));
+				Host peer = peerList.get(j);
+				Host relay = relayList.get(i);
+				assignedRelayPerPeer.put(peer, relay);
 			}
 		}
 	}

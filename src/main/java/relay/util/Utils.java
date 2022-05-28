@@ -16,10 +16,21 @@ public class Utils {
 	}
 
 	public static List<Host> configToHostList(InputStream hostsConfig) {
+		return configToHostList(hostsConfig, Integer.MAX_VALUE);
+	}
+
+	public static List<Host> configToHostList(InputStream hostsConfig, int numHosts) {
 		BufferedReader reader = new BufferedReader(new InputStreamReader(hostsConfig));
 
-		List<Host> hostList = new ArrayList<>((int) reader.lines().count());
+		List<Host> hostList;
+		if (numHosts < Integer.MAX_VALUE)
+			hostList = new ArrayList<>(numHosts);
+		else
+			hostList = new ArrayList<>();
+		final int[] i = {0};
 		reader.lines().forEach((String line) -> {
+			if (i[0] >= numHosts) return; //break
+
 			String[] parts = line.split(":");
 
 			InetAddress ip;
@@ -32,6 +43,8 @@ public class Utils {
 			int port = Integer.parseInt(parts[1]);
 
 			hostList.add(new Host(ip, port));
+
+			i[0]++;
 		});
 
 		return hostList;
