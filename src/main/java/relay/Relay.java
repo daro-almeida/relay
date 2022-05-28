@@ -28,6 +28,10 @@ import java.util.concurrent.TimeUnit;
 
 public class Relay implements InConnListener<RelayMessage>, OutConnListener<RelayMessage>, MessageListener<RelayMessage>, AttributeValidator {
 
+	static {
+		System.setProperty("log4j.configurationFile", "log4j2.xml");
+	}
+
 	public static final String NAME = "Relay";
 	public static final String ADDRESS_KEY = "address";
 	public static final String PORT_KEY = "port";
