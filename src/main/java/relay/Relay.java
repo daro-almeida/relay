@@ -27,10 +27,6 @@ import java.util.concurrent.TimeUnit;
 
 public class Relay implements InConnListener<RelayMessage>, OutConnListener<RelayMessage>, MessageListener<RelayMessage>, AttributeValidator {
 
-	static {
-		System.setProperty("log4j.configurationFile", "log4j2.xml");
-	}
-
 	public static final String NAME = "Relay";
 	public static final String ADDRESS_KEY = "address";
 	public static final String PORT_KEY = "port";
@@ -46,12 +42,15 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	public static final String DEFAULT_HB_INTERVAL = "0";
 	public static final String DEFAULT_HB_TOLERANCE = "0";
 	public static final String DEFAULT_CONNECT_TIMEOUT = "1000";
-
 	private static final Short DEFAULT_DELAY = 0;
 	private static final Short AVERAGE_ERROR = 0;
 	private static final long CONNECT_RELAYS_WAIT = 5000;
 	private static final Logger logger = LogManager.getLogger(Relay.class);
 	private static final Short PROXY_MAGIC_NUMBER = 0x1369;
+
+	static {
+		System.setProperty("log4j.configurationFile", "log4j2.xml");
+	}
 
 	private final NetworkManager<RelayMessage> network;
 	private final Attributes attributes;
@@ -67,13 +66,11 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	private final Map<Host, Host> assignedRelayPerPeer;
 
 	private final List<Host> peerList;
-	private List<Host> relayList;
-
 	private final int numRelays;
 	private final int numProcesses;
 	private final int relayID;
-
 	private final Host self;
+	private List<Host> relayList;
 
 	public Relay(Properties properties, InputStream hostsConfig, InputStream relayConfig, InputStream latencyConfig) throws IOException {
 		this(properties, hostsConfig, latencyConfig);
@@ -204,10 +201,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 				other = pair.getLeft();
 			} else continue;
 
-			RelayMessage msg = new RelayPeerDisconnectedMessage(peer, other, new IOException("Node " + peer + " disconnected"));
-			Host relay = assignedRelayPerPeer.get(other);
-			if (!relay.equals(self)) otherRelayConnections.get(relay).sendMessage(msg);
-			else sendMessageWithDelay(msg, peerToRelayConnections.get(other));
+			sendMessageWithDelay(new RelayPeerDisconnectedMessage(peer, other, new IOException("Node " + peer + " disconnected")));
 
 			it.remove();
 		}
@@ -270,7 +264,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 	@Override
 	public void outboundConnectionUp(Connection<RelayMessage> connection) {
-		Host clientSocket  = connection.getPeer();
+		Host clientSocket = connection.getPeer();
 
 		logger.trace("OutboundConnectionUp {}", clientSocket);
 		Connection<RelayMessage> old = this.otherRelayConnections.putIfAbsent(clientSocket, connection);
@@ -318,51 +312,37 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		Host from = msg.getFrom();
 		Host to = msg.getTo();
 
-		Host relay = assignedRelayPerPeer.get(to);
-		if (!relay.equals(self)) {
-			//redirect to relay responsible for peer
-			otherRelayConnections.get(relay).sendMessage(msg);
-			return;
-		}
-
 		RelayMessage.Type type = msg.getType();
 
-		Connection<RelayMessage> con = peerToRelayConnections.get(to);
-		if (con == null) {
-			logger.trace("No relay connection to {} but captured message directed to it", to);
-			return;
-		}
-
 		if (disconnectedPeers.contains(to)) {
-			if (type == RelayMessage.Type.CONN_OPEN) {
-				RelayMessage failMessage = new RelayConnectionFailMessage(to, from, new IOException("Peer " + to + " is disconnected."));
-				relay = assignedRelayPerPeer.get(from);
-				if (relay.equals(self)) sendMessageWithDelay(failMessage, peerToRelayConnections.get(from));
-				else otherRelayConnections.get(relay).sendMessage(failMessage);
-			}
+			if (type == RelayMessage.Type.CONN_OPEN)
+				sendMessageWithDelay(new RelayConnectionFailMessage(to, from, new IOException("Peer " + to + " is disconnected.")));
 			return;
 		}
 
 		switch (type) {
 			case APP_MSG:
-				handleAppMessage((RelayAppMessage) msg, from, to, con);
+				handleAppMessage((RelayAppMessage) msg);
 				break;
 			case CONN_OPEN:
-				handleConnectionRequest((RelayConnectionOpenMessage) msg, from, to, con);
+				handleConnectionRequest((RelayConnectionOpenMessage) msg);
 				break;
 			case CONN_CLOSE:
-				handleConnectionClose((RelayConnectionCloseMessage) msg, from, to, con);
+				handleConnectionClose((RelayConnectionCloseMessage) msg);
 				break;
 			case CONN_ACCEPT:
-				handleConnectionAccept((RelayConnectionAcceptMessage) msg, from, to, con);
+				handleConnectionAccept((RelayConnectionAcceptMessage) msg);
 				break;
 			case CONN_FAIL:
 			case PEER_DEAD:
-				sendMessageWithDelay(msg, con);
+				sendMessageWithDelay(msg);
 		}
 	}
 
-	private void handleConnectionClose(RelayConnectionCloseMessage msg, Host from, Host to, Connection<RelayMessage> conTo) {
+	private void handleConnectionClose(RelayConnectionCloseMessage msg) {
+		Host to = msg.getTo();
+		Host from = msg.getFrom();
+
 		logger.trace("Connection close message to {} from {}", to, from);
 
 		if (!peerToPeerConnections.remove(new ImmutablePair<>(from, to))) {
@@ -370,10 +350,13 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 			return;
 		}
 
-		sendMessageWithDelay(msg, conTo);
+		sendMessageWithDelay(msg);
 	}
 
-	private void handleConnectionAccept(RelayConnectionAcceptMessage msg, Host from, Host to, Connection<RelayMessage> conTo) {
+	private void handleConnectionAccept(RelayConnectionAcceptMessage msg) {
+		Host to = msg.getTo();
+		Host from = msg.getFrom();
+
 		logger.trace("Connection accepted message to {} from {}", to, from);
 
 		if (!peerToPeerConnections.contains(new ImmutablePair<>(to, from))) {
@@ -381,10 +364,13 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 			return;
 		}
 
-		sendMessageWithDelay(msg, conTo);
+		sendMessageWithDelay(msg);
 	}
 
-	private void handleAppMessage(RelayAppMessage msg, Host from, Host to, Connection<RelayMessage> conTo) {
+	private void handleAppMessage(RelayAppMessage msg) {
+		Host to = msg.getTo();
+		Host from = msg.getFrom();
+
 		logger.trace("Message to {} from {}", to, from);
 
 		if (!peerToPeerConnections.contains(new ImmutablePair<>(from, to)) && !peerToPeerConnections.contains(new ImmutablePair<>(to, from))) {
@@ -392,10 +378,13 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 			return;
 		}
 
-		sendMessageWithDelay(msg, conTo);
+		sendMessageWithDelay(msg);
 	}
 
-	private void handleConnectionRequest(RelayConnectionOpenMessage msg, Host from, Host to, Connection<RelayMessage> conTo) {
+	private void handleConnectionRequest(RelayConnectionOpenMessage msg) {
+		Host to = msg.getTo();
+		Host from = msg.getFrom();
+
 		logger.trace("Connection request to {} from {}", to, from);
 
 		Pair<Host, Host> pair = new ImmutablePair<>(from, to);
@@ -404,7 +393,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 			return;
 		}
 
-		sendMessageWithDelay(msg, conTo);
+		sendMessageWithDelay(msg);
 		peerToPeerConnections.add(pair);
 	}
 
@@ -414,9 +403,18 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		return channel != null && channel.equals(PROXY_MAGIC_NUMBER);
 	}
 
-	private void sendMessageWithDelay(RelayMessage msg, Connection<RelayMessage> con) {
-		Host sender = msg.getFrom();
+	private void sendMessageWithDelay(RelayMessage msg) {
 		Host receiver = msg.getTo();
+
+		Host relay = assignedRelayPerPeer.get(receiver);
+		if (!relay.equals(self)) {
+			otherRelayConnections.get(relay).sendMessage(msg);
+			return;
+		}
+
+		Connection<RelayMessage> con = peerToRelayConnections.get(receiver);
+
+		Host sender = msg.getFrom();
 
 		Short delay = latencyMatrix.getProperty(sender, receiver);
 		if (delay == null) delay = DEFAULT_DELAY;

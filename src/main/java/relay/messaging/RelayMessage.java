@@ -5,10 +5,10 @@ import pt.unl.fct.di.novasys.network.data.Host;
 
 public abstract class RelayMessage {
 
-	private final Type type;
 	protected final Host from;
 	protected final Host to;
 	protected final int seqN;
+	private final Type type;
 
 	protected RelayMessage(Host from, Host to, Type type) {
 		this.seqN = -1;
