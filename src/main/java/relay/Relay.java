@@ -27,6 +27,10 @@ import java.util.concurrent.TimeUnit;
 
 public class Relay implements InConnListener<RelayMessage>, OutConnListener<RelayMessage>, MessageListener<RelayMessage>, AttributeValidator {
 
+	static {
+		System.setProperty("log4j.configurationFile", "log4j2.xml");
+	}
+
 	public static final String NAME = "Relay";
 	public static final String ADDRESS_KEY = "address";
 	public static final String PORT_KEY = "port";
@@ -42,37 +46,34 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	public static final String DEFAULT_HB_INTERVAL = "0";
 	public static final String DEFAULT_HB_TOLERANCE = "0";
 	public static final String DEFAULT_CONNECT_TIMEOUT = "1000";
+
 	private static final Short DEFAULT_DELAY = 0;
 	private static final Short AVERAGE_ERROR = 0;
+	private static final long CONNECT_RELAYS_WAIT = 5000;
 	private static final Logger logger = LogManager.getLogger(Relay.class);
 	private static final Short PROXY_MAGIC_NUMBER = 0x1369;
-
-	static {
-		System.setProperty("log4j.configurationFile", "log4j2.xml");
-	}
 
 	private final NetworkManager<RelayMessage> network;
 	private final Attributes attributes;
 
-	private final Map<Host, Connection<RelayMessage>> peerToRelayConnections;
-
 	// left -> right
 	private final Set<Pair<Host, Host>> peerToPeerConnections;
-
 	private final Set<Host> disconnectedPeers;
 
 	private final ShortMatrix latencyMatrix;
 
+	private final Map<Host, Connection<RelayMessage>> peerToRelayConnections;
 	private final Map<Host, Connection<RelayMessage>> otherRelayConnections;
 	private final Map<Host, Host> assignedRelayPerPeer;
 
 	private final List<Host> peerList;
+	private List<Host> relayList;
+
 	private final int numRelays;
 	private final int numProcesses;
 	private final int relayID;
-	private final Host self;
-	private List<Host> relayList;
 
+	private final Host self;
 
 	public Relay(Properties properties, InputStream hostsConfig, InputStream relayConfig, InputStream latencyConfig) throws IOException {
 		this(properties, hostsConfig, latencyConfig);
@@ -82,7 +83,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		assignPeersToRelays();
 
 		try {
-			Thread.sleep(5000);
+			Thread.sleep(CONNECT_RELAYS_WAIT);
 		} catch (InterruptedException e) { // this shouldn't be interrupted
 			Thread.currentThread().interrupt();
 			throw new RuntimeException(e);
@@ -167,9 +168,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		for (int i = 0; i < numRelays; i++) {
 			Pair<Integer, Integer> range = peerRange(numProcesses, i, numRelays);
 			for (int j = range.getLeft(); j <= range.getRight(); j++) {
-				Host peer = peerList.get(j);
-				Host relay = relayList.get(i);
-				assignedRelayPerPeer.put(peer, relay);
+				assignedRelayPerPeer.put(peerList.get(j), relayList.get(i));
 			}
 		}
 	}
@@ -232,7 +231,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	public void inboundConnectionUp(Connection<RelayMessage> connection) {
 		Host clientSocket;
 		try {
-			clientSocket = connection.getPeerAttributes().getHost("listen_address");
+			clientSocket = connection.getPeerAttributes().getHost(LISTEN_ADDRESS_ATTRIBUTE);
 		} catch (IOException ex) {
 			throw new RuntimeException("Error parsing LISTEN_ADDRESS_ATTRIBUTE of inbound connection: " + ex.getMessage());
 		}
@@ -257,7 +256,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	public void inboundConnectionDown(Connection<RelayMessage> connection, Throwable cause) {
 		Host clientSocket;
 		try {
-			clientSocket = connection.getPeerAttributes().getHost("listen_address");
+			clientSocket = connection.getPeerAttributes().getHost(LISTEN_ADDRESS_ATTRIBUTE);
 		} catch (IOException ex) {
 			throw new RuntimeException("Inbound connection without valid listen address in connectionDown: " + ex.getMessage());
 		}
@@ -271,29 +270,20 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 	@Override
 	public void outboundConnectionUp(Connection<RelayMessage> connection) {
-		Host clientSocket;
-		try {
-			clientSocket = connection.getPeerAttributes().getHost("listen_address");
-		} catch (IOException ex) {
-			throw new RuntimeException("Error parsing LISTEN_ADDRESS_ATTRIBUTE of inbound connection: " + ex.getMessage());
-		}
+		Host clientSocket  = connection.getPeer();
 
-		if (clientSocket == null) {
-			throw new RuntimeException("Outbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
-		} else {
-			logger.trace("OutboundConnectionUp {}", clientSocket);
-			Connection<RelayMessage> old = this.otherRelayConnections.putIfAbsent(clientSocket, connection);
+		logger.trace("OutboundConnectionUp {}", clientSocket);
+		Connection<RelayMessage> old = this.otherRelayConnections.putIfAbsent(clientSocket, connection);
 
-			if (old != null)
-				throw new RuntimeException("Double outgoing connection with: " + clientSocket + " (" + connection.getPeer() + ")");
-		}
+		if (old != null)
+			throw new RuntimeException("Double outgoing connection with: " + clientSocket + " (" + connection.getPeer() + ")");
 	}
 
 	@Override
 	public void outboundConnectionDown(Connection<RelayMessage> connection, Throwable cause) {
 		Host clientSocket;
 		try {
-			clientSocket = connection.getPeerAttributes().getHost("listen_address");
+			clientSocket = connection.getPeerAttributes().getHost(LISTEN_ADDRESS_ATTRIBUTE);
 		} catch (IOException ex) {
 			throw new RuntimeException("Outbound connection without valid listen address in connectionDown: " + ex.getMessage());
 		}

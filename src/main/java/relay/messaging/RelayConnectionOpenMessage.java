@@ -3,18 +3,16 @@ package relay.messaging;
 import io.netty.buffer.ByteBuf;
 import pt.unl.fct.di.novasys.network.data.Host;
 
-import java.io.IOException;
-
 public class RelayConnectionOpenMessage extends RelayMessage {
 
 	public static final IRelaySerializer serializer = new IRelaySerializer<RelayConnectionOpenMessage>() {
 		@Override
-		public void serialize(RelayConnectionOpenMessage msg, ByteBuf out) throws IOException {
+		public void serialize(RelayConnectionOpenMessage msg, ByteBuf out) {
 			//nothing to do here
 		}
 
 		@Override
-		public RelayConnectionOpenMessage deserialize(int seqN, Host from, Host to, ByteBuf in) throws IOException {
+		public RelayConnectionOpenMessage deserialize(int seqN, Host from, Host to, ByteBuf in) {
 			return new RelayConnectionOpenMessage(seqN, from, to);
 		}
 	};

@@ -3,14 +3,12 @@ package relay.messaging;
 import io.netty.buffer.ByteBuf;
 import pt.unl.fct.di.novasys.network.data.Host;
 
-import java.io.IOException;
-
 public abstract class RelayMessage {
 
 	private final Type type;
-	protected Host from;
-	protected Host to;
-	protected int seqN;
+	protected final Host from;
+	protected final Host to;
+	protected final int seqN;
 
 	protected RelayMessage(Host from, Host to, Type type) {
 		this.seqN = -1;
@@ -79,8 +77,8 @@ public abstract class RelayMessage {
 	}
 
 	public interface IRelaySerializer<T extends RelayMessage> {
-		void serialize(T msg, ByteBuf out) throws IOException;
+		void serialize(T msg, ByteBuf out);
 
-		T deserialize(int seqN, Host from, Host to, ByteBuf in) throws IOException;
+		T deserialize(int seqN, Host from, Host to, ByteBuf in);
 	}
 }

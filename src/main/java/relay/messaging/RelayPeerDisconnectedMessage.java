@@ -3,19 +3,17 @@ package relay.messaging;
 import io.netty.buffer.ByteBuf;
 import pt.unl.fct.di.novasys.network.data.Host;
 
-import java.io.IOException;
-
 public class RelayPeerDisconnectedMessage extends RelayMessage {
 
 	public static final IRelaySerializer serializer = new IRelaySerializer<RelayPeerDisconnectedMessage>() {
 		@Override
-		public void serialize(RelayPeerDisconnectedMessage msg, ByteBuf out) throws IOException {
+		public void serialize(RelayPeerDisconnectedMessage msg, ByteBuf out) {
 			out.writeInt(msg.cause.getMessage().getBytes().length);
 			out.writeBytes(msg.cause.getMessage().getBytes());
 		}
 
 		@Override
-		public RelayPeerDisconnectedMessage deserialize(int seqN, Host from, Host to, ByteBuf in) throws IOException {
+		public RelayPeerDisconnectedMessage deserialize(int seqN, Host from, Host to, ByteBuf in) {
 			int size = in.readInt();
 			byte[] strBytes = new byte[size];
 			in.readBytes(strBytes);

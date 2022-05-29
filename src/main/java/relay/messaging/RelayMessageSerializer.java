@@ -19,7 +19,7 @@ public class RelayMessageSerializer implements ISerializer<RelayMessage> {
 		Host.serializer.serialize(relayMessage.from, out);
 		Host.serializer.serialize(relayMessage.to, out);
 		relayMessage.getType().serializer.serialize(relayMessage, out);
-		logger.debug("Serialized message " + relayMessage.seqN + " to " + relayMessage.to + " from " + relayMessage.from);
+		logger.debug("Serialized message {} to {} from {}", relayMessage.seqN, relayMessage.to, relayMessage.from);
 	}
 
 	@Override
@@ -29,7 +29,7 @@ public class RelayMessageSerializer implements ISerializer<RelayMessage> {
 		Host from = Host.serializer.deserialize(in);
 		Host to = Host.serializer.deserialize(in);
 		RelayMessage relayMessage = type.serializer.deserialize(seqN, from, to, in);
-		logger.debug("Deserialized message " + relayMessage.seqN + " to " + relayMessage.to + " from " + relayMessage.from);
+		logger.debug("Deserialized message {} to {} from {}", relayMessage.seqN, relayMessage.to, relayMessage.from);
 		return relayMessage;
 	}
 
