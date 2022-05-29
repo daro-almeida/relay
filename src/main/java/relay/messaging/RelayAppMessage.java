@@ -7,25 +7,14 @@ public class RelayAppMessage extends RelayMessage {
 	public static final IRelaySerializer serializer = new IRelaySerializer<RelayAppMessage>() {
 		@Override
 		public void serialize(RelayAppMessage msg, ByteBuf out) {
-			int sizeIndex = out.writerIndex();
-			out.writeInt(-1);
-
-			int startIndex = out.writerIndex();
-
+			out.writeInt(msg.payload.length);
 			out.writeBytes(msg.payload);
-
-			int serializedSize = out.writerIndex() - startIndex;
-			out.markWriterIndex();
-			out.writerIndex(sizeIndex);
-			out.writeInt(serializedSize);
-			out.resetWriterIndex();
 		}
 
 		@Override
 		public RelayAppMessage deserialize(int seqN, Host from, Host to, ByteBuf in) {
-			int msgSize = in.getInt(in.readerIndex());
+			int msgSize = in.readInt();
 			byte[] content = new byte[msgSize];
-			in.skipBytes(4);
 			in.readBytes(content);
 
 			return new RelayAppMessage(seqN, from, to, content);
