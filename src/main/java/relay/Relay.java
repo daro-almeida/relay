@@ -43,7 +43,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	public static final String DEFAULT_HB_TOLERANCE = "0";
 	public static final String DEFAULT_CONNECT_TIMEOUT = "1000";
 	private static final Short DEFAULT_DELAY = 0;
-	private static final Short AVERAGE_ERROR = 0;
+	private static final Short AVERAGE_ERROR = 2;
 	private static final long CONNECT_RELAYS_WAIT = 5000;
 	private static final Logger logger = LogManager.getLogger(Relay.class);
 	private static final Short PROXY_MAGIC_NUMBER = 0x1369;
