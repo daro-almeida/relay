@@ -3,6 +3,8 @@
 /target/
 /relay.jar
 /src/main/java/example/
-/ips100.txt
-/inet100Latencies.txt
+/config/ips100.txt
+/config/inet100Latencies.txt
 /start-processes-local.sh
+/config/
+/peer-sampling.jar
