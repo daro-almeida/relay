@@ -6,17 +6,15 @@ from collections import defaultdict as dd
 
 
 def determine_relay_sleep_time(args):
-    sleep = 7
+    sleep = 5
     if args.no_gc_relays:
         sleep += 8
-        if args.Xms_relays:
-            sleep += args.Xms_relays / 5
     return sleep
 
 
 def parse_line_to_host(line):
     parts = line.split(":")
-    return parts[0], parts[1]
+    return parts[0], int(parts[1])
 
 
 def hosts_from_file(filename, num):
@@ -37,13 +35,13 @@ def validate_args(args):
     pass
 
 
-def build_start_relay_command(relay_host, i, args):
+def build_start_relay_command(relay_host, i, args, _):
     command = ["python3", "start-relay.py", str(args.nodes), str(args.relays), str(i), args.list_nodes,
-               args.list_relays, "-lf", args.log_folder, "-a", relay_host[0], "-p", relay_host[1]]
+               args.list_relays, "-lf", args.log_folder, "-a", relay_host[0], "-p", str(relay_host[1])]
     if args.Xms_relays:
-        command.extend(["-Xms", str(args.Xms_relays)])
+        command.extend(["-Xms", args.Xms_relays])
     if args.Xmx_relays:
-        command.extend(["-Xmx", str(args.Xmx_relays)])
+        command.extend(["-Xmx", args.Xmx_relays])
     if args.no_gc_relays:
         command.append("-no_gc")
     if args.latency_matrix:
@@ -56,12 +54,12 @@ def build_start_relay_command(relay_host, i, args):
 def map_relay_to_id_range(args, relay_dict):
     relay_to_id_range = dd(tuple)
     relay_id = 0
-    r = args.nodes % args.relays
+    r = int(args.nodes % args.relays)
     for relay_address, _ in relay_dict.items():
         for relay_port in relay_dict[relay_address]:
-            size = args.nodes / args.relays + (1 if r > relay_id else 0)
-            start = relay_id * (args.nodes / args.relays) + max(0, min(r, relay_id))
-            end = start + size - 1
+            size = int(int(args.nodes / args.relays) + (1 if r > relay_id else 0))
+            start = int(relay_id * int(args.nodes / args.relays) + max(0, min(r, relay_id)))
+            end = int(start + size - 1)
             relay_to_id_range[(relay_address, relay_port)] = (start, end)
             relay_id += 1
 
@@ -72,18 +70,19 @@ def relay_from_map(relay_to_id_range, i):
     for relay, rng in relay_to_id_range.items():
         if rng[0] <= i <= rng[1]:
             return relay
+    print("error attributing relay to node")
     exit(1)  # error
 
 
 def build_start_node_command(node_host, i, args, relay_to_id_range):
     node_relay = relay_from_map(relay_to_id_range, i)
-    command = ["python3", "start-node.py", args.jar, node_relay[0], node_relay[1], "-m",
-               args.main_class, "-i", str(i), "-cf", args.config_file, "-lf", args.logfolder, "-a", node_host[0], "-p",
-               node_host[1]]
+    command = ["python3", "start-node.py", args.jar, node_relay[0], str(node_relay[1]), "-m",
+               args.main_class, "-i", str(i), "-cf", args.config_file, "-lf", args.log_folder, "-a", node_host[0], "-p",
+               str(node_host[1])]
     if args.Xms_nodes:
-        command.extend(["-Xms", str(args.Xms_nodes)])
+        command.extend(["-Xms", args.Xms_nodes])
     if args.Xmx_nodes:
-        command.extend(["-Xmx", str(args.Xmx_nodes)])
+        command.extend(["-Xmx", args.Xmx_nodes])
     if args.no_gc_nodes:
         command.append("-no_gc")
     command.append("-e")
@@ -105,35 +104,38 @@ def run_processes(host_dict, build_command_func, args, relay_to_id_range):
             command.extend(build_command_func((host_address, host_port), i, args, relay_to_id_range))
             i += 1
 
-        if args.oar_job_id:
-            subprocess.run(command, env=dict(OAR_JOB_ID=str(args.oar_job_id), **os.environ))
+        if args.oar_job_id and not args.ssh:
+            subprocess.Popen(command, env=dict(OAR_JOB_ID=str(args.oar_job_id), **os.environ))
         else:
-            subprocess.run(command)
-
+            subprocess.Popen(command)
 
 def start_experiment(relay_dict, node_dict, args):
     relay_to_id_range = map_relay_to_id_range(args, relay_dict)
 
     run_processes(relay_dict, build_start_relay_command, args, [])
-    time.sleep(determine_relay_sleep_time(args))
+    time.sleep(1)
+    print("::::::RELAYS RUNNING:::::: ")
+    time.sleep(1)
+    sleep = determine_relay_sleep_time(args)
+    print("Sleeping %ds..." % determine_relay_sleep_time(args))
+    time.sleep(sleep)
     run_processes(node_dict, build_start_node_command, args, relay_to_id_range)
+    time.sleep(1)
+    print("::::::NODES RUNNING:::::: ")
 
 
-def kill_processes(host_dict, args, jar):
-    for host, _ in host_dict.items():
-        command = "ssh" if args.ssh else "oarsh"
-        command += " %s\n" % host[0]
-        command += "kill $(ps aux | grep '%s' | awk '{print $2}')" % jar
-        if args.oar_job_id:
-            subprocess.run(command, shell=True, env=dict(OAR_JOB_ID=str(args.oar_job_id), **os.environ))
+def kill_processes(host_dict, args):
+    for host_address, _ in host_dict.items():
+        command = ["ssh" if args.ssh else "oarsh", host_address, "\n", "killall", "java", "\n"]
+        if args.oar_job_id and not args.ssh:
+            subprocess.run(command, env=dict(OAR_JOB_ID=str(args.oar_job_id), **os.environ))
         else:
-            subprocess.run(command, shell=True)
+            subprocess.run(command)
 
 
 def end_experiment(relay_dict, node_dict, args):
-    kill_processes(node_dict, args, args.jar)
-    kill_processes(relay_dict, args, "relay.jar")
-    print("Experiment ended successfully")
+    kill_processes(node_dict, args)
+    kill_processes(relay_dict, args)
 
 
 def main() -> int:
@@ -154,12 +156,12 @@ def main() -> int:
                         help="OAR_JOB_ID of experiment. If OAR_JOB_ID is already defined in environment, this is not "
                              "needed")
     parser.add_argument("-m", "--main_class", default="Main", help="Main class of .jar executable")
-    parser.add_argument("-Xms_nodes", type=int)
-    parser.add_argument("-Xmx_nodes", type=int)
-    parser.add_argument("-Xms_relays", type=int)
-    parser.add_argument("-Xmx_relays", type=int)
-    parser.add_argument("-no_gc_nodes", action="store_true", help="disable garbage collector in nodes")
-    parser.add_argument("-no_gc_relays", action="store_true", help="disable garbage collector in relays")
+    parser.add_argument("-Xms_nodes")
+    parser.add_argument("-Xmx_nodes")
+    parser.add_argument("-Xms_relays")
+    parser.add_argument("-Xmx_relays")
+    parser.add_argument("-ngn", "--no_gc_nodes", action="store_true", help="disable garbage collector in nodes")
+    parser.add_argument("-ngr", "--no_gc_relays", action="store_true", help="disable garbage collector in relays")
     parser.add_argument("-lf", "--log_folder", default="logs/", help="log folder")
     parser.add_argument("-cf", "--config_file", default="config.properties", help="config file for nodes")
     parser.add_argument("-lm", "--latency_matrix", help="file with latency matrix")
@@ -172,11 +174,18 @@ def main() -> int:
     relay_dict = hosts_from_file(args.list_relays, args.relays)
     node_dict = hosts_from_file(args.list_nodes, args.nodes)
 
+    print("Removing any remnants of previous experiments if any...")
+    end_experiment(relay_dict, node_dict, args)
+
     start_experiment(relay_dict, node_dict, args)
 
+    time.sleep(1)
     input("------------- Press enter to end experiment. --------------------")
 
     end_experiment(relay_dict, node_dict, args)
+
+    time.sleep(1)
+    print("Experiment ended successfully")
 
     return 0
 

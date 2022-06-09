@@ -6,17 +6,17 @@ import socket
 def generate_command(args):
     command = ["java"]
     if args.Xms:
-        command.append("-Xms%dg" % args.Xms)
+        command.append("-Xms%s" % args.Xms)
     if args.Xmx:
-        command.append("-Xmx%dg" % args.Xmx)
+        command.append("-Xmx%s" % args.Xmx)
     if args.no_gc:
-        command.extend(["-XX:+UnlockExperimentalVMOptions", "-XX:+UseEpsilonGC"])
+        command.extend(["-XX:+UnlockExperimentalVMOptions", "-XX:+UseEpsilonGC", "-XX:+AlwaysPreTouch"])
     command.extend(
         ["-DlogFilename=%srelay-%d" % (args.logfolder, args.relay_id), "-cp", "relay.jar", "relay.Relay", args.address,
          str(args.port), str(args.nodes), str(args.relays), str(args.relay_id), args.list_nodes, args.list_relays])
     if args.latency_matrix:
         command.append(args.latency_matrix)
-    command.append("&")
+    # command.append("&")
     return command
 
 
@@ -33,8 +33,8 @@ def main() -> int:
     parser.add_argument("list_nodes", help="file with node list")
     parser.add_argument("list_relays", help="file with relay list")
 
-    parser.add_argument("-Xms", type=int)
-    parser.add_argument("-Xmx", type=int)
+    parser.add_argument("-Xms")
+    parser.add_argument("-Xmx")
     parser.add_argument("-no_gc", action="store_true", help="disable garbage collector")
     parser.add_argument("-lf", "--logfolder", default="logs/", help="log folder")
     parser.add_argument("-a", "--address", default=socket.gethostbyname(socket.gethostname()),
@@ -47,7 +47,8 @@ def main() -> int:
     validate_args(args)
 
     command = generate_command(args)
-    print("{} on {}:{}".format(*command, args.address, args.port))
+    print("%s:" % args.address)
+    print(*command)
     subprocess.Popen(command)
 
     return 0
