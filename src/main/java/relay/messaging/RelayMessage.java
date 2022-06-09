@@ -24,6 +24,10 @@ public abstract class RelayMessage {
 		this.to = to;
 	}
 
+	public int getSeqN() {
+		return seqN;
+	}
+
 	public Type getType() {
 		return type;
 	}

@@ -314,6 +314,8 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 		RelayMessage.Type type = msg.getType();
 
+		logger.debug("Received {} message {} from {} to {}", type.name(), msg.getSeqN(), from, to);
+
 		if (disconnectedPeers.contains(to)) {
 			if (type == RelayMessage.Type.CONN_OPEN)
 				sendMessageWithDelay(new RelayConnectionFailMessage(to, from, new IOException("Peer " + to + " is disconnected.")));
@@ -421,6 +423,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		con.getLoop().schedule(() -> {
 			if (!disconnectedPeers.contains(receiver)) {
 				con.sendMessage(msg);
+				logger.debug("Sending {} message {} from {} to {}", msg.getType().name(), msg.getSeqN(), sender, receiver);
 			}
 		}, Math.max(0, delay - AVERAGE_ERROR), TimeUnit.MILLISECONDS);
 	}
