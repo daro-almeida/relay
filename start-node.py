@@ -40,14 +40,16 @@ def main() -> int:
                         help="local private address")
     parser.add_argument("-p", "--port", type=int, default=8581, help="node port")
     parser.add_argument("-e", "--extra_args", default=[], nargs="*")
+    parser.add_argument("-v", "--verbose", action="store_true", help="show process being launched for debugging")
 
     args = parser.parse_args()
 
     validate_args(args)
 
     command = generate_command(args)
-    print("%s:" % args.address)
-    print(*command)
+    if args.verbose:
+        print("%s:" % args.address)
+        print(*command)
     subprocess.Popen(command)
 
     return 0

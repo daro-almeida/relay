@@ -41,14 +41,16 @@ def main() -> int:
                         help="local private address")
     parser.add_argument("-p", "--port", type=int, default=9082, help="relay port")
     parser.add_argument("-lm", "--latency_matrix", help="file with latency matrix")
+    parser.add_argument("-v", "--verbose", action="store_true", help="show process being launched for debugging")
 
     args = parser.parse_args()
 
     validate_args(args)
 
     command = generate_command(args)
-    print("%s:" % args.address)
-    print(*command)
+    if args.verbose:
+        print("%s:" % args.address)
+        print(*command)
     subprocess.Popen(command)
 
     return 0

@@ -46,6 +46,8 @@ def build_start_relay_command(relay_host, i, args, _):
         command.append("-no_gc")
     if args.latency_matrix:
         command.extend(["-lm", args.latency_matrix])
+    if args.verbose:
+        command.append("-v")
     command.append("\n")
 
     return command
@@ -85,6 +87,8 @@ def build_start_node_command(node_host, i, args, relay_to_id_range):
         command.extend(["-Xmx", args.Xmx_nodes])
     if args.no_gc_nodes:
         command.append("-no_gc")
+    if args.verbose:
+        command.append("-v")
     command.append("-e")
     command.extend(args.extra_args)
     command.append("\n")
@@ -108,6 +112,7 @@ def run_processes(host_dict, build_command_func, args, relay_to_id_range):
             subprocess.Popen(command, env=dict(OAR_JOB_ID=str(args.oar_job_id), **os.environ))
         else:
             subprocess.Popen(command)
+
 
 def start_experiment(relay_dict, node_dict, args):
     relay_to_id_range = map_relay_to_id_range(args, relay_dict)
@@ -166,6 +171,7 @@ def main() -> int:
     parser.add_argument("-cf", "--config_file", default="config.properties", help="config file for nodes")
     parser.add_argument("-lm", "--latency_matrix", help="file with latency matrix")
     parser.add_argument("-e", "--extra_args", default=[], nargs="*", help="extra arguments for nodes")
+    parser.add_argument("-v", "--verbose", action="store_true", help="show process being launched for debugging")
 
     args = parser.parse_args()
 
