@@ -422,7 +422,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 			if (!disconnectedPeers.contains(receiver)) {
 				con.sendMessage(msg);
 			}
-		}, (long) delay - AVERAGE_ERROR, TimeUnit.MILLISECONDS);
+		}, Math.max(0, delay - AVERAGE_ERROR), TimeUnit.MILLISECONDS);
 	}
 
 }
