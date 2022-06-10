@@ -8,7 +8,7 @@ from collections import defaultdict as dd
 def determine_relay_sleep_time(args):
     sleep = 5
     if args.no_gc_relays:
-        sleep += 8
+        sleep += 10
     return sleep
 
 
@@ -172,6 +172,8 @@ def main() -> int:
     parser.add_argument("-lm", "--latency_matrix", help="file with latency matrix")
     parser.add_argument("-e", "--extra_args", default=[], nargs="*", help="extra arguments for nodes")
     parser.add_argument("-v", "--verbose", action="store_true", help="show process being launched for debugging")
+    parser.add_argument("-t", "--time", type=int, help="run experiment during the given time, in seconds, or until "
+                                                       "enter key is pressed")
 
     args = parser.parse_args()
 
@@ -186,7 +188,12 @@ def main() -> int:
     start_experiment(relay_dict, node_dict, args)
 
     time.sleep(1)
-    input("------------- Press enter to end experiment. --------------------")
+
+    if args.time:
+        print("------------- Press enter to end experiment. Running for %ds --------------------" % args.time)
+        subprocess.call('read -t %d' % args.time, shell=True)
+    else:
+        input("------------- Press enter to end experiment. --------------------")
 
     end_experiment(relay_dict, node_dict, args)
 
