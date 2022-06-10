@@ -191,7 +191,7 @@ def main() -> int:
 
     if args.time:
         print("------------- Press enter to end experiment. Running for %ds --------------------" % args.time)
-        subprocess.call('read -t %d' % args.time, shell=True)
+        subprocess.call('read -t %d' % args.time, shell=True, executable='/bin/bash')
     else:
         input("------------- Press enter to end experiment. --------------------")
 
