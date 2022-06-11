@@ -5,10 +5,19 @@ import time
 from collections import defaultdict as dd
 
 
-def determine_relay_sleep_time(args):
-    sleep = 5
+def determine_relays_sleep_time(args):
+    sleep = 7
     if args.no_gc_relays:
         sleep += 10
+    return sleep
+
+
+def determine_nodes_sleep_time(args):
+    sleep = 1
+    if args.no_gc_nodes:
+        sleep += 10
+    if args.sleep:
+        sleep += args.sleep * args.nodes
     return sleep
 
 
@@ -92,6 +101,8 @@ def build_start_node_command(node_host, i, args, relay_to_id_range):
     command.append("-e")
     command.extend(args.extra_args)
     command.append("\n")
+    if args.sleep:
+        time.sleep(args.sleep)
 
     return command
 
@@ -117,16 +128,15 @@ def run_processes(host_dict, build_command_func, args, relay_to_id_range):
 def start_experiment(relay_dict, node_dict, args):
     relay_to_id_range = map_relay_to_id_range(args, relay_dict)
 
+    print("Starting up relays...")
     run_processes(relay_dict, build_start_relay_command, args, [])
-    time.sleep(1)
-    print("::::::RELAYS RUNNING:::::: ")
-    time.sleep(1)
-    sleep = determine_relay_sleep_time(args)
-    print("Sleeping %ds..." % determine_relay_sleep_time(args))
-    time.sleep(sleep)
+    time.sleep(determine_relays_sleep_time(args))
+    print("::::::RELAYS RUNNING::::::")
+
+    print("Starting up nodes...")
     run_processes(node_dict, build_start_node_command, args, relay_to_id_range)
-    time.sleep(1)
-    print("::::::NODES RUNNING:::::: ")
+    time.sleep(determine_nodes_sleep_time(args))
+    print("::::::NODES RUNNING::::::")
 
 
 def kill_processes(host_dict, args):
@@ -174,6 +184,8 @@ def main() -> int:
     parser.add_argument("-v", "--verbose", action="store_true", help="show process being launched for debugging")
     parser.add_argument("-t", "--time", type=int, help="run experiment during the given time, in seconds, or until "
                                                        "enter key is pressed")
+    parser.add_argument("-s", "--sleep", type=float, help="sleep time in seconds between the initialization of each "
+                                                          "node ")
 
     args = parser.parse_args()
 
