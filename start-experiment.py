@@ -16,6 +16,8 @@ def determine_nodes_sleep_time(args):
     sleep = 1
     if args.no_gc_nodes:
         sleep += 10
+    if args.sleep:
+        sleep += args.sleep * args.nodes
     return sleep
 
 
