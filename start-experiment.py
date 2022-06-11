@@ -100,7 +100,7 @@ def build_start_node_command(node_host, i, args, relay_to_id_range):
     command.extend(args.extra_args)
     command.append("\n")
     if args.sleep:
-        time.sleep(args.sleep)
+        command.extend(["sleep", str(args.sleep), "\n"])
 
     return command
 
