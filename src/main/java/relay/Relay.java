@@ -43,8 +43,8 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	public static final String DEFAULT_HB_TOLERANCE = "0";
 	public static final String DEFAULT_CONNECT_TIMEOUT = "1000";
 	private static final Short DEFAULT_DELAY = 0;
-	private static final Short AVERAGE_ERROR_DIFFERENT_RELAYS = 2;
-	private static final Short AVERAGE_ERROR_SAME_RELAY = 1;
+	private static final Short AVERAGE_ERROR_DIFFERENT_RELAYS_MIS = 2000;
+	private static final Short AVERAGE_ERROR_SAME_RELAY_MIS = 1561;
 	private static final long CONNECT_RELAYS_WAIT = 5000;
 	private static final Logger logger = LogManager.getLogger(Relay.class);
 	private static final Short PROXY_MAGIC_NUMBER = 0x1369;
@@ -419,15 +419,15 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 		short averageError;
 		if(assignedRelayPerPeer.get(sender).equals(self))
-			averageError = AVERAGE_ERROR_SAME_RELAY;
+			averageError = AVERAGE_ERROR_SAME_RELAY_MIS;
 		else
-			averageError = AVERAGE_ERROR_DIFFERENT_RELAYS;
+			averageError = AVERAGE_ERROR_DIFFERENT_RELAYS_MIS;
 
 		Short delay = latencyMatrix.getProperty(sender, receiver);
 		if (delay == null)
 			delay = DEFAULT_DELAY;
 
-		con.getLoop().schedule(() -> sendMessage(msg, receiver, con), delay - averageError, TimeUnit.MILLISECONDS);
+		con.getLoop().schedule(() -> sendMessage(msg, receiver, con), delay * 1000 - averageError, TimeUnit.MICROSECONDS);
 	}
 
 	private void sendMessage(RelayMessage msg, Host to, Connection<RelayMessage> con) {
