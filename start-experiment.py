@@ -15,7 +15,7 @@ def determine_relays_sleep_time(args):
 def determine_nodes_sleep_time(args):
     sleep = 1
     if args.no_gc_nodes:
-        sleep += 10
+        sleep += 15
     if args.sleep:
         sleep += args.sleep * args.nodes
     return sleep
@@ -98,8 +98,9 @@ def build_start_node_command(node_host, i, args, relay_to_id_range):
         command.append("-no_gc")
     if args.verbose:
         command.append("-v")
-    command.append("-e")
-    command.extend(args.extra_args)
+    if args.extra_args:
+        command.append("-e")
+        command.extend(args.extra_args)
     command.append("\n")
     if args.sleep:
         command.extend(["sleep", str(args.sleep), "\n"])
