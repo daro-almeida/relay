@@ -8,7 +8,7 @@ from collections import defaultdict as dd
 def determine_relays_sleep_time(args):
     sleep = 7
     if args.no_gc_relays:
-        sleep += 10
+        sleep += 15
     return sleep
 
 
