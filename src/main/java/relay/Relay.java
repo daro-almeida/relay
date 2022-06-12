@@ -15,7 +15,7 @@ import pt.unl.fct.di.novasys.network.listeners.MessageListener;
 import pt.unl.fct.di.novasys.network.listeners.OutConnListener;
 import relay.messaging.*;
 import relay.util.Utils;
-import relay.util.matrixes.ShortMatrix;
+import relay.util.matrixes.FloatMatrix;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -42,9 +42,9 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	public static final String DEFAULT_HB_INTERVAL = "0";
 	public static final String DEFAULT_HB_TOLERANCE = "0";
 	public static final String DEFAULT_CONNECT_TIMEOUT = "1000";
-	private static final Short DEFAULT_DELAY = 0;
-	private static final Short AVERAGE_ERROR_DIFFERENT_RELAYS_MIS = 2000;
-	private static final Short AVERAGE_ERROR_SAME_RELAY_MIS = 1561;
+	private static final float DEFAULT_DELAY = 0;
+	private static final int AVERAGE_ERROR_DIFFERENT_RELAYS_NS = 2000000;
+	private static final int AVERAGE_ERROR_SAME_RELAY_NS = 1561000;
 	private static final long CONNECT_RELAYS_WAIT = 5000;
 	private static final Logger logger = LogManager.getLogger(Relay.class);
 	private static final Short PROXY_MAGIC_NUMBER = 0x1369;
@@ -60,7 +60,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	private final Set<Pair<Host, Host>> peerToPeerConnections;
 	private final Set<Host> disconnectedPeers;
 
-	private final ShortMatrix latencyMatrix;
+	private final FloatMatrix latencyMatrix;
 
 	private final Map<Host, Connection<RelayMessage>> peerToRelayConnections;
 	private final Map<Host, Connection<RelayMessage>> otherRelayConnections;
@@ -110,7 +110,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 		List<Host> peerList = Utils.configToHostList(hostsConfig, numPeers);
 		Pair<Integer, Integer> range = peerRange(numPeers, relayID, numRelays);
-		latencyMatrix = new ShortMatrix(peerList, latencyConfig, range.getLeft(), range.getRight());
+		latencyMatrix = new FloatMatrix(peerList, latencyConfig, range.getLeft(), range.getRight());
 
 		relayList = Utils.configToHostList(relayConfig, numRelays);
 
@@ -417,17 +417,17 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 		Host sender = msg.getFrom();
 
-		short averageError;
+		float averageError;
 		if(assignedRelayPerPeer.get(sender).equals(self))
-			averageError = AVERAGE_ERROR_SAME_RELAY_MIS;
+			averageError = AVERAGE_ERROR_SAME_RELAY_NS;
 		else
-			averageError = AVERAGE_ERROR_DIFFERENT_RELAYS_MIS;
+			averageError = AVERAGE_ERROR_DIFFERENT_RELAYS_NS;
 
-		Short delay = latencyMatrix.getProperty(sender, receiver);
+		Float delay = latencyMatrix.getProperty(sender, receiver);
 		if (delay == null)
 			delay = DEFAULT_DELAY;
 
-		con.getLoop().schedule(() -> sendMessage(msg, receiver, con), delay * 1000 - averageError, TimeUnit.MICROSECONDS);
+		con.getLoop().schedule(() -> sendMessage(msg, receiver, con), (long) (delay * 1000000 - averageError), TimeUnit.NANOSECONDS);
 	}
 
 	private void sendMessage(RelayMessage msg, Host to, Connection<RelayMessage> con) {
