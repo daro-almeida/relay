@@ -14,8 +14,8 @@ import pt.unl.fct.di.novasys.network.listeners.InConnListener;
 import pt.unl.fct.di.novasys.network.listeners.MessageListener;
 import pt.unl.fct.di.novasys.network.listeners.OutConnListener;
 import relay.messaging.*;
-import relay.util.Utils;
-import relay.util.matrixes.FloatMatrix;
+import relay.util.ConfigUtils;
+import relay.util.matrixes.LatencyMatrix;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -60,7 +60,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	private final Set<Pair<Host, Host>> peerToPeerConnections;
 	private final Set<Host> disconnectedPeers;
 
-	private final FloatMatrix latencyMatrix;
+	private final LatencyMatrix latencyMatrix;
 
 	private final Map<Host, Connection<RelayMessage>> peerToRelayConnections;
 	private final Map<Host, Connection<RelayMessage>> otherRelayConnections;
@@ -108,11 +108,11 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		otherRelayConnections = new HashMap<>(numRelays - 1);
 		assignedRelayPerPeer = new HashMap<>(numPeers);
 
-		List<Host> peerList = Utils.configToHostList(hostsConfig, numPeers);
+		List<Host> peerList = ConfigUtils.configToHostList(hostsConfig, numPeers);
 		Pair<Integer, Integer> range = peerRange(numPeers, relayID, numRelays);
-		latencyMatrix = new FloatMatrix(peerList, latencyConfig, range.getLeft(), range.getRight());
+		latencyMatrix = new LatencyMatrix(peerList, latencyConfig, range.getLeft(), range.getRight());
 
-		relayList = Utils.configToHostList(relayConfig, numRelays);
+		relayList = ConfigUtils.configToHostList(relayConfig, numRelays);
 
 		assignPeersToRelays(peerList, relayList);
 
@@ -137,21 +137,6 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		int end = start + size - 1;
 
 		return new ImmutablePair<>(start, end);
-	}
-
-	public static void main(String[] args) throws IOException {
-		Properties properties = new Properties();
-		properties.put(ADDRESS_KEY, args[0]);
-		properties.put(PORT_KEY, args[1]);
-		properties.put(NUM_PEERS, args[2]);
-		properties.put(NUM_RELAYS, args[3]);
-		properties.put(RELAY_ID, args[4]);
-
-
-		try (FileInputStream hostsConfig = new FileInputStream(args[5]); FileInputStream relayConfig = new FileInputStream(args[6]); FileInputStream latencyConfig = new FileInputStream(args[7])) {
-
-			new Relay(properties, hostsConfig, relayConfig, latencyConfig);
-		}
 	}
 
 	private void connectToRelays() {

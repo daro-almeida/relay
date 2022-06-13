@@ -12,7 +12,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class UtilsTest {
+class ConfigUtilsTest {
 
 	private InputStream hostsConfig;
 
@@ -33,7 +33,7 @@ class UtilsTest {
 
 	@org.junit.jupiter.api.Test
 	void configToHostList() throws UnknownHostException {
-		List<Host> hosts = Utils.configToHostList(hostsConfig, 5);
+		List<Host> hosts = ConfigUtils.configToHostList(hostsConfig, 5);
 
 		List<Host> expected = new ArrayList<Host>() {
 			{

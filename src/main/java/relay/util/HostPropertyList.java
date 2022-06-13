@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class HostPropertyList<T> {
 
-	private final Map<Host, T> propertyList;
+	protected final Map<Host, T> propertyList;
 
 	protected HostPropertyList(List<Host> hostList, InputStream listConfig) throws IOException {
 		propertyList = new ConcurrentHashMap<>();

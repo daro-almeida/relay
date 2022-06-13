@@ -7,13 +7,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 
-public class FloatMatrix extends HostPropertySymmetricMatrix<Float> {
+public class LatencyMatrix extends HostPropertySymmetricMatrix<Float> {
 
-	public FloatMatrix(List<Host> hostList, InputStream matrixConfig) throws IOException {
+	public LatencyMatrix(List<Host> hostList, InputStream matrixConfig) throws IOException {
 		super(hostList, matrixConfig);
 	}
 
-	public FloatMatrix(List<Host> hostList, InputStream matrixConfig, int relayID, int numRelays) throws IOException {
+	public LatencyMatrix(List<Host> hostList, InputStream matrixConfig, int relayID, int numRelays) throws IOException {
 		super(hostList, matrixConfig, relayID, numRelays);
 	}
 
