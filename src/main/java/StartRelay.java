@@ -1,4 +1,5 @@
 import net.sourceforge.argparse4j.ArgumentParsers;
+import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 import relay.Relay;
@@ -9,9 +10,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Properties;
 
-import net.sourceforge.argparse4j.inf.ArgumentParser;
-
-
 import static relay.Relay.*;
 
 public class StartRelay {
@@ -21,13 +19,15 @@ public class StartRelay {
 
 		Properties properties = new Properties();
 		properties.put(ADDRESS_KEY, ns.getString("address"));
-		properties.put(PORT_KEY, args[1]);
-		properties.put(NUM_PEERS, args[2]);
-		properties.put(NUM_RELAYS, args[3]);
-		properties.put(RELAY_ID, args[4]);
+		properties.put(PORT_KEY, ns.getInt("port"));
+		properties.put(NUM_NODES, ns.getInt("nodes"));
+		properties.put(NUM_RELAYS, ns.getInt("relays"));
+		properties.put(RELAY_ID, ns.getInt("relay_id"));
 
 
-		try (FileInputStream hostsConfig = new FileInputStream(args[5]); FileInputStream relayConfig = new FileInputStream(args[6]); FileInputStream latencyConfig = new FileInputStream(args[7])) {
+		try (FileInputStream hostsConfig = new FileInputStream(ns.getString("list_nodes"));
+			 FileInputStream relayConfig = new FileInputStream(ns.getString("list_relays"));
+			 FileInputStream latencyConfig = new FileInputStream(ns.getString("latency_matrix"))) {
 
 			new Relay(properties, hostsConfig, relayConfig, latencyConfig);
 		}
@@ -36,7 +36,7 @@ public class StartRelay {
 	private static Namespace getNamespace(String[] args) throws UnknownHostException {
 		ArgumentParser parser = ArgumentParsers.newFor("Relay").build().defaultHelp(true);
 		parser.addArgument("nodes").type(int.class).help("number of nodes");
-		parser.addArgument("relays").type(int.class).setDefault(1).help("number of relays");
+		parser.addArgument("relays").type(int.class).nargs("?").setDefault(1).help("number of relays");
 		parser.addArgument("relay_id").type(int.class).nargs("?").setDefault(0).help("relay ID");
 		parser.addArgument("list_nodes").help("file with node list");
 		parser.addArgument("list_relays").help("file with relay list");

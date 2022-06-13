@@ -1,6 +1,6 @@
-import subprocess
 import argparse
 import socket
+import subprocess
 
 
 def generate_command(args):
@@ -12,10 +12,11 @@ def generate_command(args):
     if args.no_gc:
         command.extend(["-XX:+UnlockExperimentalVMOptions", "-XX:+UseEpsilonGC", "-XX:+AlwaysPreTouch"])
     command.extend(
-        ["-DlogFilename=%srelay-%d" % (args.logfolder, args.relay_id), "-cp", "relay.jar", "relay.Relay", args.address,
-         str(args.port), str(args.nodes), str(args.relays), str(args.relay_id), args.list_nodes, args.list_relays])
+        ["-DlogFilename=%srelay-%d" % (args.logfolder, args.relay_id), "-cp", "relay.jar", "StartRelay",
+         str(args.nodes), str(args.relays), str(args.relay_id), args.list_nodes, args.list_relays, "-a", args.address,
+         "-p", str(args.port)])
     if args.latency_matrix:
-        command.append(args.latency_matrix)
+        command.extend(["-lm", args.latency_matrix])
     # command.append("&")
     return command
 

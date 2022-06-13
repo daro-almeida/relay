@@ -1,5 +1,7 @@
 package relay;
 
+import io.netty.channel.DefaultEventLoop;
+import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -17,7 +19,6 @@ import relay.messaging.*;
 import relay.util.ConfigUtils;
 import relay.util.matrixes.LatencyMatrix;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
@@ -35,7 +36,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	public static final String CONNECT_TIMEOUT_KEY = "connect_timeout";
 	public static final String RELAY_ID = "relay_id";
 	public static final String NUM_RELAYS = "num_relays";
-	public static final String NUM_PEERS = "num_peers";
+	public static final String NUM_NODES = "num_peers";
 	public static final String WORKER_GROUP_KEY = "workerGroup";
 	public static final String LISTEN_ADDRESS_ATTRIBUTE = "listen_address";
 	public static final String DEFAULT_PORT = "9082";
@@ -43,8 +44,8 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	public static final String DEFAULT_HB_TOLERANCE = "0";
 	public static final String DEFAULT_CONNECT_TIMEOUT = "1000";
 	private static final float DEFAULT_DELAY = 0;
-	private static final int AVERAGE_ERROR_DIFFERENT_RELAYS_NS = 2000000;
-	private static final int AVERAGE_ERROR_SAME_RELAY_NS = 1561000;
+	private static final int AVERAGE_ERROR_DIFFERENT_RELAYS_MIS = 2000;
+	private static final int AVERAGE_ERROR_SAME_RELAY_MIS = 1561;
 	private static final long CONNECT_RELAYS_WAIT = 5000;
 	private static final Logger logger = LogManager.getLogger(Relay.class);
 	private static final Short PROXY_MAGIC_NUMBER = 0x1369;
@@ -65,6 +66,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	private final Map<Host, Connection<RelayMessage>> peerToRelayConnections;
 	private final Map<Host, Connection<RelayMessage>> otherRelayConnections;
 	private final Map<Host, Host> assignedRelayPerPeer;
+	private final Map<Host, EventLoop> loopPerSender;
 
 	private final int numRelays;
 	private final int numPeers;
@@ -79,7 +81,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		else throw new IllegalArgumentException(NAME + " requires binding address");
 
 		int port = Integer.parseInt(properties.getProperty(PORT_KEY, DEFAULT_PORT));
-		numPeers = Integer.parseInt(properties.getProperty(NUM_PEERS, "0"));
+		numPeers = Integer.parseInt(properties.getProperty(NUM_NODES, "0"));
 		numRelays = Integer.parseInt(properties.getProperty(NUM_RELAYS, "1"));
 		relayID = Integer.parseInt(properties.getProperty(RELAY_ID, "0"));
 
@@ -105,6 +107,8 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 		disconnectedPeers = ConcurrentHashMap.newKeySet(numPeersOfThisRelay);
 
+		loopPerSender = new HashMap<>(numPeersOfThisRelay);
+
 		otherRelayConnections = new HashMap<>(numRelays - 1);
 		assignedRelayPerPeer = new HashMap<>(numPeers);
 
@@ -116,13 +120,12 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 		assignPeersToRelays(peerList, relayList);
 
-		try {
-			Thread.sleep(CONNECT_RELAYS_WAIT);
-		} catch (InterruptedException e) { // this shouldn't be interrupted
-			Thread.currentThread().interrupt();
-			throw new RuntimeException(e);
-		}
-		connectToRelays();
+		new Timer().schedule(new TimerTask() {
+			@Override
+			public void run() {
+				connectToRelays();
+			}
+		}, CONNECT_RELAYS_WAIT);
 	}
 
 	private static int numPeersOfRelay(int numPeers, int relayID, int numRelays) {
@@ -222,8 +225,10 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 			Connection<RelayMessage> old;
 			if (relayList.contains(clientSocket))
 				old = otherRelayConnections.putIfAbsent(clientSocket, connection);
-			else
+			else {
 				old = peerToRelayConnections.putIfAbsent(clientSocket, connection);
+				loopPerSender.put(clientSocket, new DefaultEventLoop());
+			}
 
 			if (old != null)
 				throw new RuntimeException("Double incoming connection from: " + clientSocket + " (" + connection.getPeer() + ")");
@@ -391,28 +396,30 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 	private void sendMessageWithDelay(RelayMessage msg) {
 		Host receiver = msg.getTo();
-
-		Host relay = assignedRelayPerPeer.get(receiver);
-		if (!relay.equals(self)) {
-			sendMessage(msg, receiver, otherRelayConnections.get(relay));
-			return;
-		}
-
-		Connection<RelayMessage> con = peerToRelayConnections.get(receiver);
-
 		Host sender = msg.getFrom();
 
-		float averageError;
-		if(assignedRelayPerPeer.get(sender).equals(self))
-			averageError = AVERAGE_ERROR_SAME_RELAY_NS;
-		else
-			averageError = AVERAGE_ERROR_DIFFERENT_RELAYS_NS;
+		EventLoop loop = loopPerSender.get(sender);
+		if (loop == null) {
+			sendMessage(msg, receiver, peerToRelayConnections.get(receiver));
+		} else {
+			float averageError;
+			if(assignedRelayPerPeer.get(sender).equals(self))
+				averageError = AVERAGE_ERROR_SAME_RELAY_MIS;
+			else
+				averageError = AVERAGE_ERROR_DIFFERENT_RELAYS_MIS;
 
-		Float delay = latencyMatrix.getProperty(sender, receiver);
-		if (delay == null)
-			delay = DEFAULT_DELAY;
+			Float delay = latencyMatrix.getProperty(sender, receiver);
+			if (delay == null)
+				delay = DEFAULT_DELAY;
 
-		con.getLoop().schedule(() -> sendMessage(msg, receiver, con), (long) (delay * 1000000 - averageError), TimeUnit.NANOSECONDS);
+			loop.schedule(() -> {
+				Host relay = assignedRelayPerPeer.get(receiver);
+				if (relay.equals(self))
+					sendMessage(msg, receiver, peerToRelayConnections.get(receiver));
+				else
+					sendMessage(msg, receiver, otherRelayConnections.get(relay));
+			}, (long) (delay * 1000 - averageError), TimeUnit.MICROSECONDS);
+		}
 	}
 
 	private void sendMessage(RelayMessage msg, Host to, Connection<RelayMessage> con) {
