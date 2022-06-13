@@ -19,11 +19,10 @@ public class StartRelay {
 
 		Properties properties = new Properties();
 		properties.put(ADDRESS_KEY, ns.getString("address"));
-		properties.put(PORT_KEY, ns.getInt("port"));
-		properties.put(NUM_NODES, ns.getInt("nodes"));
-		properties.put(NUM_RELAYS, ns.getInt("relays"));
-		properties.put(RELAY_ID, ns.getInt("relay_id"));
-
+		properties.put(PORT_KEY, ns.getInt("port").toString());
+		properties.put(NUM_NODES, ns.getInt("nodes").toString());
+		properties.put(NUM_RELAYS, ns.getInt("relays").toString());
+		properties.put(RELAY_ID, ns.getInt("relay_id").toString());
 
 		try (FileInputStream hostsConfig = new FileInputStream(ns.getString("list_nodes"));
 			 FileInputStream relayConfig = new FileInputStream(ns.getString("list_relays"));
@@ -35,13 +34,13 @@ public class StartRelay {
 
 	private static Namespace getNamespace(String[] args) throws UnknownHostException {
 		ArgumentParser parser = ArgumentParsers.newFor("Relay").build().defaultHelp(true);
-		parser.addArgument("nodes").type(int.class).help("number of nodes");
-		parser.addArgument("relays").type(int.class).nargs("?").setDefault(1).help("number of relays");
-		parser.addArgument("relay_id").type(int.class).nargs("?").setDefault(0).help("relay ID");
+		parser.addArgument("nodes").type(Integer.class).help("number of nodes");
+		parser.addArgument("relays").type(Integer.class).nargs("?").setDefault(1).help("number of relays");
+		parser.addArgument("relay_id").type(Integer.class).nargs("?").setDefault(0).help("relay ID");
 		parser.addArgument("list_nodes").help("file with node list");
 		parser.addArgument("list_relays").help("file with relay list");
 		parser.addArgument("-a", "--address").setDefault(InetAddress.getLocalHost().getHostAddress()).help("local private address");
-		parser.addArgument("-p", "--port").type(int.class).setDefault(9082).help("relay port");
+		parser.addArgument("-p", "--port").type(Integer.class).setDefault(9082).help("relay port");
 		parser.addArgument("-lm", "--latency_matrix").help("file with latency matrix");
 
 		try {
