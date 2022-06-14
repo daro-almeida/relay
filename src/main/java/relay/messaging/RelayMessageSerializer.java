@@ -1,12 +1,16 @@
 package relay.messaging;
 
 import io.netty.buffer.ByteBuf;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import pt.unl.fct.di.novasys.network.ISerializer;
 import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
 
 public class RelayMessageSerializer implements ISerializer<RelayMessage> {
+
+	private static final Logger logger = LogManager.getLogger(RelayMessageSerializer.class);
 
 	@Override
 	public void serialize(RelayMessage relayMessage, ByteBuf out) throws IOException {
@@ -15,6 +19,7 @@ public class RelayMessageSerializer implements ISerializer<RelayMessage> {
 		Host.serializer.serialize(relayMessage.from, out);
 		Host.serializer.serialize(relayMessage.to, out);
 		relayMessage.getType().serializer.serialize(relayMessage, out);
+		logger.debug("Serialized {} message {} from {} to {}", relayMessage.getType().name(), relayMessage.getSeqN(), relayMessage.getFrom(), relayMessage.getTo());
 	}
 
 	@Override
@@ -23,7 +28,9 @@ public class RelayMessageSerializer implements ISerializer<RelayMessage> {
 		int seqN = in.readInt();
 		Host from = Host.serializer.deserialize(in);
 		Host to = Host.serializer.deserialize(in);
-		return type.serializer.deserialize(seqN, from, to, in);
+		RelayMessage relayMessage = type.serializer.deserialize(seqN, from, to, in);
+		logger.debug("Deserialized {} message {} from {} to {}", relayMessage.getType().name(), relayMessage.getSeqN(), relayMessage.getFrom(), relayMessage.getTo());
+		return relayMessage;
 	}
 
 }

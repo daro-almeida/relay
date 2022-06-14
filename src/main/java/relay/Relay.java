@@ -50,10 +50,6 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	private static final Logger logger = LogManager.getLogger(Relay.class);
 	private static final Short PROXY_MAGIC_NUMBER = 0x1369;
 
-	static {
-		System.setProperty("log4j.configurationFile", "log4j2.xml");
-	}
-
 	private final NetworkManager<RelayMessage> network;
 	private final Attributes attributes;
 

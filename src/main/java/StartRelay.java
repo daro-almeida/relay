@@ -14,6 +14,10 @@ import static relay.Relay.*;
 
 public class StartRelay {
 
+	static {
+		System.setProperty("log4j.configurationFile", "log4j2.xml");
+	}
+
 	public static void main(String[] args) throws IOException {
 		Namespace ns = getNamespace(args);
 
