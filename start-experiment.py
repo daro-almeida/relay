@@ -44,7 +44,7 @@ def validate_args(args):
     pass
 
 
-def build_start_relay_command(relay_host, i, args, _):
+def build_start_relay_command(relay_host, i, args, _, __):
     command = ["python3", "start-relay.py", str(args.nodes), str(args.relays), str(i), args.list_nodes,
                args.list_relays, "-lf", args.log_folder, "-a", relay_host[0], "-p", str(relay_host[1])]
     if args.Xms_relays:
@@ -63,7 +63,7 @@ def build_start_relay_command(relay_host, i, args, _):
 
 
 def map_relay_to_id_range(args, relay_dict):
-    relay_to_id_range = dd(tuple)
+    result = dd(tuple)
     relay_id = 0
     r = int(args.nodes % args.relays)
     for relay_address, _ in relay_dict.items():
@@ -71,13 +71,13 @@ def map_relay_to_id_range(args, relay_dict):
             size = int(int(args.nodes / args.relays) + (1 if r > relay_id else 0))
             start = int(relay_id * int(args.nodes / args.relays) + max(0, min(r, relay_id)))
             end = int(start + size - 1)
-            relay_to_id_range[(relay_address, relay_port)] = (start, end)
+            result[(relay_address, relay_port)] = (start, end)
             relay_id += 1
 
-    return relay_to_id_range
+    return result
 
 
-def relay_from_map(relay_to_id_range, i):
+def relay_from_map(i):
     for relay, rng in relay_to_id_range.items():
         if rng[0] <= i <= rng[1]:
             return relay
@@ -85,8 +85,8 @@ def relay_from_map(relay_to_id_range, i):
     exit(1)  # error
 
 
-def build_start_node_command(node_host, i, args, relay_to_id_range):
-    node_relay = relay_from_map(relay_to_id_range, i)
+def build_start_node_command(node_host, i, args):
+    node_relay = relay_from_map(i)
     command = ["python3", "start-node.py", args.jar, node_relay[0], str(node_relay[1]), "-m",
                args.main_class, "-i", str(i), "-cf", args.config_file, "-lf", args.log_folder, "-a", node_host[0], "-p",
                str(node_host[1])]
@@ -98,9 +98,12 @@ def build_start_node_command(node_host, i, args, relay_to_id_range):
         command.append("-no_gc")
     if args.verbose:
         command.append("-v")
-    if args.extra_args:
+    if args.extra_args or args.extra_args_config:
         command.append("-e")
-        command.extend(args.extra_args)
+        if args.extra_args:
+            command.extend(args.extra_args)
+        if args.extra_args_config:
+            command.extend(host_extra_args[node_host[0]])
     command.append("\n")
     if args.sleep:
         command.extend(["sleep", str(args.sleep), "\n"])
@@ -108,7 +111,7 @@ def build_start_node_command(node_host, i, args, relay_to_id_range):
     return command
 
 
-def run_processes(host_dict, build_command_func, args, relay_to_id_range):
+def run_processes(host_dict, build_command_func, args):
     i = 0
     for host_address, _ in host_dict.items():
         command = ["ssh" if args.ssh else "oarsh"]
@@ -117,25 +120,37 @@ def run_processes(host_dict, build_command_func, args, relay_to_id_range):
             command.extend(["cd", args.cd, "\n"])
 
         for host_port in host_dict[host_address]:
-            command.extend(build_command_func((host_address, host_port), i, args, relay_to_id_range))
+            command.extend(build_command_func((host_address, host_port), i, args))
             i += 1
-
         if args.oar_job_id and not args.ssh:
             subprocess.Popen(command, env=dict(OAR_JOB_ID=str(args.oar_job_id), **os.environ))
         else:
             subprocess.Popen(command)
 
 
-def start_experiment(relay_dict, node_dict, args):
-    relay_to_id_range = map_relay_to_id_range(args, relay_dict)
+def get_extra_args_per_host(args):
+    extra_args_per_host = dict()
+    with open(args.extra_args_config, "r") as config:
+        for line in config.readlines():
+            parts = line.split(None, 1)
+            extra_args_per_host[parts[0]] = parts[1]
+    return extra_args_per_host
 
+
+def start_experiment(relay_dict, node_dict, args):
+    global host_extra_args
+    global relay_to_id_range
     print("Starting up relays...")
-    run_processes(relay_dict, build_start_relay_command, args, [])
+    run_processes(relay_dict, build_start_relay_command, args)
     time.sleep(determine_relays_sleep_time(args))
     print("::::::RELAYS RUNNING::::::")
 
+    relay_to_id_range = map_relay_to_id_range(args, relay_dict)
+    if args.extra_args_config:
+        host_extra_args = get_extra_args_per_host(args)
+
     print("Starting up nodes...")
-    run_processes(node_dict, build_start_node_command, args, relay_to_id_range)
+    run_processes(node_dict, build_start_node_command, args)
     time.sleep(determine_nodes_sleep_time(args))
     print("::::::NODES RUNNING::::::")
 
@@ -182,6 +197,7 @@ def main() -> int:
     parser.add_argument("-cf", "--config_file", default="config.properties", help="config file for nodes")
     parser.add_argument("-lm", "--latency_matrix", help="file with latency matrix")
     parser.add_argument("-e", "--extra_args", default=[], nargs="*", help="extra arguments for nodes")
+    parser.add_argument("-ec", "--extra_args_config", help="file that specifies extra arguments for each node")
     parser.add_argument("-v", "--verbose", action="store_true", help="show process being launched for debugging")
     parser.add_argument("-t", "--time", type=int, help="run experiment during the given time, in seconds, or until "
                                                        "enter key is pressed")
