@@ -129,11 +129,11 @@ def run_processes(host_dict, build_command_func, args):
 
 
 def get_extra_args_per_host(args):
-    extra_args_per_host = dict()
+    extra_args_per_host = dd(list)
     with open(args.extra_args_config, "r") as config:
         for line in config.readlines():
             parts = line.split(None, 1)
-            extra_args_per_host[parts[0]] = parts[1]
+            extra_args_per_host[parts[0]] = parts[1].split(" ")
     return extra_args_per_host
 
 
