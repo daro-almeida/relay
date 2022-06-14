@@ -298,7 +298,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 		RelayMessage.Type type = msg.getType();
 
-		logger.debug("Received {} message {} from {} to {}", type.name(), msg.getSeqN(), from, to);
+		logger.debug("Received {} message {} to {} from {}", type.name(), msg.getSeqN(), to, from);
 
 		if (disconnectedPeers.contains(to)) {
 			if (type == RelayMessage.Type.CONN_OPEN)
@@ -424,7 +424,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	private void sendMessage(RelayMessage msg, Connection<RelayMessage> con) {
 		if (!disconnectedPeers.contains(msg.getTo())) {
 			con.sendMessage(msg);
-			logger.debug("Sending {} message {} from {} to {}", msg.getType().name(), msg.getSeqN(), msg.getFrom(), msg.getTo());
+			logger.debug("Sending {} message {} to {} from {}", msg.getType().name(), msg.getSeqN(), msg.getTo(), msg.getFrom());
 		}
 	}
 
