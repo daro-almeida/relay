@@ -44,7 +44,7 @@ def validate_args(args):
     pass
 
 
-def build_start_relay_command(relay_host, i, args, _, __):
+def build_start_relay_command(relay_host, i, args):
     command = ["python3", "start-relay.py", str(args.nodes), str(args.relays), str(i), args.list_nodes,
                args.list_relays, "-lf", args.log_folder, "-a", relay_host[0], "-p", str(relay_host[1])]
     if args.Xms_relays:
