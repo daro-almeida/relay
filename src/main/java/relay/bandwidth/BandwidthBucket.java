@@ -11,9 +11,9 @@ public class BandwidthBucket {
 	private static final short CONTROL_PACKET_SIZE = 20;
 	private static final int FREQUENCY = 1000;
 	private static final ByteUnit BUCKET_UNIT = ByteUnit.BYTE;
+	private final Timer timer;
 	private double capacity;
 	private double currentSize;
-	private final Timer timer;
 
 	private BandwidthBucket() {
 		this.currentSize = 0;
@@ -45,8 +45,8 @@ public class BandwidthBucket {
 			startTimer();
 		currentSize += amount; //BUCKET_UNIT.convert(amount, ByteUnit.BYTE);
 
-		synchronized(this) {
-			while(isFull()) {
+		synchronized (this) {
+			while (isFull()) {
 				try {
 					this.wait();
 				} catch (InterruptedException e) {

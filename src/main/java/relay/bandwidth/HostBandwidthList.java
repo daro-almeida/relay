@@ -15,38 +15,10 @@ import java.util.regex.Pattern;
 
 public class HostBandwidthList extends HostPropertyList<Pair<BandwidthBucket, BandwidthBucket>> {
 
-	private enum ThroughputType {
-		BPS, KBPS, MBPS, GBPS, PBPS, //bits
-		B, KB, MB, GB, PB			 //bytes
-	}
-
 	private static final Pattern PATTERN = Pattern.compile("(\\d+([.]\\d*)?|[.]\\d+)(.+)");
 
 	protected HostBandwidthList(List<Host> hostList, InputStream bandwidthConfig) throws IOException {
 		super(hostList, bandwidthConfig);
-	}
-
-	@Override
-	protected Pair<BandwidthBucket, BandwidthBucket> parseString(String input) {
-		String[] parts = input.split(" ");
-		String inStr = parts[0];
-		String outStr = parts[1];
-
-		Matcher matcherIn = PATTERN.matcher(inStr);
-		BandwidthBucket inBandwidth = parseBandwidth(matcherIn);
-
-		Matcher matcherOut = PATTERN.matcher(inStr);
-		BandwidthBucket outBandwidth = parseBandwidth(matcherIn);
-
-		return new ImmutablePair<>(inBandwidth, outBandwidth);
-	}
-
-	public BandwidthBucket getInBandwidthBucket(Host host) {
-		return propertyList.get(host).getLeft();
-	}
-
-	public BandwidthBucket getOutBandwidthBucket(Host host) {
-		return propertyList.get(host).getRight();
 	}
 
 	private static BandwidthBucket parseBandwidth(Matcher match) {
@@ -78,5 +50,33 @@ public class HostBandwidthList extends HostPropertyList<Pair<BandwidthBucket, Ba
 			default:
 				throw new IllegalStateException("Unexpected value: " + type);
 		}
+	}
+
+	@Override
+	protected Pair<BandwidthBucket, BandwidthBucket> parseString(String input) {
+		String[] parts = input.split(" ");
+		String inStr = parts[0];
+		String outStr = parts[1];
+
+		Matcher matcherIn = PATTERN.matcher(inStr);
+		BandwidthBucket inBandwidth = parseBandwidth(matcherIn);
+
+		Matcher matcherOut = PATTERN.matcher(inStr);
+		BandwidthBucket outBandwidth = parseBandwidth(matcherIn);
+
+		return new ImmutablePair<>(inBandwidth, outBandwidth);
+	}
+
+	public BandwidthBucket getInBandwidthBucket(Host host) {
+		return propertyList.get(host).getLeft();
+	}
+
+	public BandwidthBucket getOutBandwidthBucket(Host host) {
+		return propertyList.get(host).getRight();
+	}
+
+	private enum ThroughputType {
+		BPS, KBPS, MBPS, GBPS, PBPS, //bits
+		B, KB, MB, GB, PB             //bytes
 	}
 }

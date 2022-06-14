@@ -1,8 +1,6 @@
 package relay.messaging;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import pt.unl.fct.di.novasys.network.ISerializer;
 import pt.unl.fct.di.novasys.network.data.Host;
 

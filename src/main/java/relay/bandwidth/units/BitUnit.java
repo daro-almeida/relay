@@ -18,96 +18,139 @@ package relay.bandwidth.units;
 
 /**
  * @author Fabian Barney
- *
  */
 public enum BitUnit {
 
 	BIT {
 		@Override
-		public double toBits(double d) { return d; }
+		public double toBits(double d) {
+			return d;
+		}
 
 		@Override
-		public double convert(double d, BitUnit u) { return u.toBits(d); }
+		public double convert(double d, BitUnit u) {
+			return u.toBits(d);
+		}
 	},
 
 	KIBIT {
 		@Override
-		public double toBits(double d) { return safeMulti(d, C_KIBIT); }
+		public double toBits(double d) {
+			return safeMulti(d, C_KIBIT);
+		}
 
 		@Override
-		public double convert(double d, BitUnit u) { return u.toKibit(d); }
+		public double convert(double d, BitUnit u) {
+			return u.toKibit(d);
+		}
 	},
 
 	MIBIT {
 		@Override
-		public double toBits(double d) { return safeMulti(d, C_MIBIT); }
+		public double toBits(double d) {
+			return safeMulti(d, C_MIBIT);
+		}
 
 		@Override
-		public double convert(double d, BitUnit u) { return u.toMibit(d); }
+		public double convert(double d, BitUnit u) {
+			return u.toMibit(d);
+		}
 	},
 
 	GIBIT {
 		@Override
-		public double toBits(double d) { return safeMulti(d, C_GIBIT); }
+		public double toBits(double d) {
+			return safeMulti(d, C_GIBIT);
+		}
 
 		@Override
-		public double convert(double d, BitUnit u) { return u.toGibit(d); }
+		public double convert(double d, BitUnit u) {
+			return u.toGibit(d);
+		}
 	},
 
 	TIBIT {
 		@Override
-		public double toBits(double d) { return safeMulti(d, C_TIBIT); }
+		public double toBits(double d) {
+			return safeMulti(d, C_TIBIT);
+		}
 
 		@Override
-		public double convert(double d, BitUnit u) { return u.toTibit(d); }
+		public double convert(double d, BitUnit u) {
+			return u.toTibit(d);
+		}
 	},
 
 	PIBIT {
 		@Override
-		public double toBits(double d) { return safeMulti(d, C_PIBIT); }
+		public double toBits(double d) {
+			return safeMulti(d, C_PIBIT);
+		}
 
 		@Override
-		public double convert(double d, BitUnit u) { return u.toPibit(d); }
+		public double convert(double d, BitUnit u) {
+			return u.toPibit(d);
+		}
 	},
 
 	KBIT {
 		@Override
-		public double toBits(double d) { return safeMulti(d, C_KBIT); }
+		public double toBits(double d) {
+			return safeMulti(d, C_KBIT);
+		}
 
 		@Override
-		public double convert(double d, BitUnit u) { return u.toKbit(d); }
+		public double convert(double d, BitUnit u) {
+			return u.toKbit(d);
+		}
 	},
 
 	MBIT {
 		@Override
-		public double toBits(double d) { return safeMulti(d, C_MBIT); }
+		public double toBits(double d) {
+			return safeMulti(d, C_MBIT);
+		}
 
 		@Override
-		public double convert(double d, BitUnit u) { return u.toMbit(d); }
+		public double convert(double d, BitUnit u) {
+			return u.toMbit(d);
+		}
 	},
 
 	GBIT {
 		@Override
-		public double toBits(double d) { return safeMulti(d, C_GBIT); }
+		public double toBits(double d) {
+			return safeMulti(d, C_GBIT);
+		}
 
 		@Override
-		public double convert(double d, BitUnit u) { return u.toGbit(d); }
+		public double convert(double d, BitUnit u) {
+			return u.toGbit(d);
+		}
 	},
 
 	TBIT {
 		@Override
-		public double toBits(double d) { return safeMulti(d, C_TBIT); }
+		public double toBits(double d) {
+			return safeMulti(d, C_TBIT);
+		}
 
 		@Override
-		public double convert(double d, BitUnit u) { return u.toTbit(d); }
+		public double convert(double d, BitUnit u) {
+			return u.toTbit(d);
+		}
 	},
 
 	PBIT {
 		@Override
-		public double toBits(double d) { return safeMulti(d, C_PBIT); }
+		public double toBits(double d) {
+			return safeMulti(d, C_PBIT);
+		}
 
 		@Override
-		public double convert(double d, BitUnit u) { return u.toPbit(d); }
+		public double convert(double d, BitUnit u) {
+			return u.toPbit(d);
+		}
 	};
 
 
@@ -129,10 +172,10 @@ public enum BitUnit {
 	static final double safeMulti(double d, double multi) {
 		double limit = MAX / multi;
 
-		if (d >  limit) {
+		if (d > limit) {
 			return Double.MAX_VALUE;
 		}
-		
+
 		if (d < -limit) {
 			return Double.MIN_VALUE;
 		}
@@ -144,7 +187,7 @@ public enum BitUnit {
 	public abstract double toBits(double d);
 
 
-	public final double toKibit(double d){
+	public final double toKibit(double d) {
 		return toBits(d) / C_KIBIT;
 	}
 
@@ -185,14 +228,14 @@ public enum BitUnit {
 		return toBits(d) / C_PBIT;
 	}
 
-	
+
 	public abstract double convert(double d, BitUnit u);
 
-	public final double convert(double d, ByteUnit u){
+	public final double convert(double d, ByteUnit u) {
 		return convert(d, u, Byte.SIZE);
 	}
 
-	public final double convert(double d, ByteUnit u, int wordSize){
+	public final double convert(double d, ByteUnit u, int wordSize) {
 		double bits = safeMulti(u.toBytes(d), wordSize);
 		return convert(bits, BIT);
 	}
@@ -203,16 +246,16 @@ public enum BitUnit {
 	 * Komfort-Methoden für Cross-Konvertierung
 	 */
 
-	public final double toBytes(double d){
+	public final double toBytes(double d) {
 		return ByteUnit.BYTE.convert(d, this);
 	}
 
-	public final double toBytes(double d, int wordSize){
+	public final double toBytes(double d, int wordSize) {
 		return ByteUnit.BYTE.convert(d, this, wordSize);
 	}
 
 
-	public final double toKiB(double d){
+	public final double toKiB(double d) {
 		return ByteUnit.KIB.convert(d, this);
 	}
 
@@ -233,8 +276,7 @@ public enum BitUnit {
 	}
 
 
-
-	public final double toKiB(double d, int wordSize){
+	public final double toKiB(double d, int wordSize) {
 		return ByteUnit.KIB.convert(d, this, wordSize);
 	}
 
@@ -253,8 +295,6 @@ public enum BitUnit {
 	public final double toPiB(double d, int wordSize) {
 		return ByteUnit.PIB.convert(d, this, wordSize);
 	}
-
-
 
 
 	public final double toKB(double d) {

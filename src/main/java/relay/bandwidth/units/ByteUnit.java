@@ -15,144 +15,196 @@ package relay.bandwidth.units;/*
  */
 
 /**
- * 
  * @author Fabian Barney
- *
  */
 public enum ByteUnit {
 
-	/** <pre>
+	/**
+	 * <pre>
 	 * Byte (B)
 	 * 1 Byte
 	 */
 	BYTE {
 		@Override
-		public double toBytes(double d) { return d; }
+		public double toBytes(double d) {
+			return d;
+		}
 
 		@Override
-		public double convert(double d, ByteUnit u) { return u.toBytes(d); }
+		public double convert(double d, ByteUnit u) {
+			return u.toBytes(d);
+		}
 	},
 
-	/** <pre>
+	/**
+	 * <pre>
 	 * Kibibyte (KiB)
 	 * 2^10 Byte = 1.024 Byte
 	 */
 	KIB {
 		@Override
-		public double toBytes(double d) { return safeMulti(d, C_KIB); }
+		public double toBytes(double d) {
+			return safeMulti(d, C_KIB);
+		}
 
 		@Override
-		public double convert(double d, ByteUnit u) { return u.toKiB(d); }
+		public double convert(double d, ByteUnit u) {
+			return u.toKiB(d);
+		}
 	},
 
-	/** <pre>
+	/**
+	 * <pre>
 	 * Mebibyte (MiB)
 	 * 2^20 Byte = 1.024 * 1.024 Byte = 1.048.576 Byte
 	 */
 	MIB {
 		@Override
-		public double toBytes(double d) { return safeMulti(d, C_MIB); }
+		public double toBytes(double d) {
+			return safeMulti(d, C_MIB);
+		}
 
 		@Override
-		public double convert(double d, ByteUnit u) { return u.toMiB(d); }
+		public double convert(double d, ByteUnit u) {
+			return u.toMiB(d);
+		}
 	},
 
-	/** <pre>
+	/**
+	 * <pre>
 	 * Gibibyte (GiB)
 	 * 2^30 Byte = 1.024 * 1.024 * 1.024 Byte = 1.073.741.824 Byte
 	 */
 	GIB {
 		@Override
-		public double toBytes(double d) { return safeMulti(d, C_GIB); }
+		public double toBytes(double d) {
+			return safeMulti(d, C_GIB);
+		}
 
 		@Override
-		public double convert(double d, ByteUnit u) { return u.toGiB(d); }
+		public double convert(double d, ByteUnit u) {
+			return u.toGiB(d);
+		}
 	},
 
-	/** <pre>
+	/**
+	 * <pre>
 	 * Tebibyte (TiB)
 	 * 2^40 Byte = 1.024 * 1.024 * 1.024 * 1.024 Byte = 1.099.511.627.776 Byte
 	 */
 	TIB {
 		@Override
-		public double toBytes(double d) { return safeMulti(d, C_TIB); }
+		public double toBytes(double d) {
+			return safeMulti(d, C_TIB);
+		}
 
 		@Override
-		public double convert(double d, ByteUnit u) { return u.toTiB(d); }
+		public double convert(double d, ByteUnit u) {
+			return u.toTiB(d);
+		}
 	},
 
-	/** <pre>
+	/**
+	 * <pre>
 	 * Pebibyte (PiB)
 	 * 2^50 Byte = 1.024 * 1.024 * 1.024 * 1.024 * 1.024 Byte = 1.125.899.906.842.624 Byte
 	 */
 	PIB {
 		@Override
-		public double toBytes(double d) { return safeMulti(d, C_PIB); }
+		public double toBytes(double d) {
+			return safeMulti(d, C_PIB);
+		}
 
 		@Override
-		public double convert(double d, ByteUnit u) { return u.toPiB(d); }
+		public double convert(double d, ByteUnit u) {
+			return u.toPiB(d);
+		}
 	},
 
-	/** <pre>
+	/**
+	 * <pre>
 	 * Kilobyte (kB)
 	 * 10^3 Byte = 1.000 Byte
 	 */
 	KB {
 		@Override
-		public double toBytes(double d) { return safeMulti(d, C_KB); }
+		public double toBytes(double d) {
+			return safeMulti(d, C_KB);
+		}
 
 		@Override
-		public double convert(double d, ByteUnit u) { return u.toKB(d); }
+		public double convert(double d, ByteUnit u) {
+			return u.toKB(d);
+		}
 	},
 
-	/** <pre>
+	/**
+	 * <pre>
 	 * Megabyte (MB)
 	 * 10^6 Byte = 1.000.000 Byte
 	 */
 	MB {
 		@Override
-		public double toBytes(double d) { return safeMulti(d, C_MB); }
+		public double toBytes(double d) {
+			return safeMulti(d, C_MB);
+		}
 
 		@Override
-		public double convert(double d, ByteUnit u) { return u.toMB(d); }
+		public double convert(double d, ByteUnit u) {
+			return u.toMB(d);
+		}
 	},
 
-	/** <pre>
+	/**
+	 * <pre>
 	 * Gigabyte (GB)
 	 * 10^9 Byte = 1.000.000.000 Byte
 	 */
 	GB {
 		@Override
-		public double toBytes(double d) { return safeMulti(d, C_GB); }
+		public double toBytes(double d) {
+			return safeMulti(d, C_GB);
+		}
 
 		@Override
-		public double convert(double d, ByteUnit u) { return u.toGB(d); }
+		public double convert(double d, ByteUnit u) {
+			return u.toGB(d);
+		}
 	},
 
-	/** <pre>
+	/**
+	 * <pre>
 	 * Terabyte (TB)
 	 * 10^12 Byte = 1.000.000.000.000 Byte
 	 */
 	TB {
 		@Override
-		public double toBytes(double d) { return safeMulti(d, C_TB); }
+		public double toBytes(double d) {
+			return safeMulti(d, C_TB);
+		}
 
 		@Override
-		public double convert(double d, ByteUnit u) { return u.toTB(d); }
+		public double convert(double d, ByteUnit u) {
+			return u.toTB(d);
+		}
 	},
 
-	/** <pre>
+	/**
+	 * <pre>
 	 * Petabyte (PB)
 	 * 10^15 Byte = 1.000.000.000.000.000 Byte
 	 */
 	PB {
 		@Override
-		public double toBytes(double d) { return safeMulti(d, C_PB); }
+		public double toBytes(double d) {
+			return safeMulti(d, C_PB);
+		}
 
 		@Override
-		public double convert(double d, ByteUnit u) { return u.toPB(d); }
+		public double convert(double d, ByteUnit u) {
+			return u.toPB(d);
+		}
 	};
-
 
 
 	static final double C_KIB = Math.pow(2d, 10d);
@@ -171,11 +223,10 @@ public enum ByteUnit {
 	private static final double MAX = Double.MAX_VALUE;
 
 
-
 	static final double safeMulti(double d, double multi) {
 		double limit = MAX / multi;
 
-		if (d >  limit) {
+		if (d > limit) {
 			return Double.MAX_VALUE;
 		}
 		if (d < -limit) {
@@ -185,10 +236,10 @@ public enum ByteUnit {
 		return d * multi;
 	}
 
-	
+
 	public abstract double toBytes(double d);
 
-	public final double toKiB(double d){
+	public final double toKiB(double d) {
 		return toBytes(d) / C_KIB;
 	}
 
@@ -208,7 +259,7 @@ public enum ByteUnit {
 		return toBytes(d) / C_PIB;
 	}
 
-	
+
 	public final double toKB(double d) {
 		return toBytes(d) / C_KB;
 	}
@@ -230,18 +281,16 @@ public enum ByteUnit {
 	}
 
 
-
 	public abstract double convert(double d, ByteUnit u);
 
 	public final double convert(double d, BitUnit u) {
 		return convert(d, u, Byte.SIZE);
 	}
 
-	public final double convert(double d, BitUnit u, int wordSize){
+	public final double convert(double d, BitUnit u, int wordSize) {
 		double bytes = u.toBits(d) / wordSize;
 		return convert(bytes, BYTE);
 	}
-
 
 
 	/*
@@ -256,7 +305,7 @@ public enum ByteUnit {
 	}
 
 
-	public final double toKibit(double d){
+	public final double toKibit(double d) {
 		return BitUnit.KIBIT.convert(d, this);
 	}
 
@@ -276,7 +325,7 @@ public enum ByteUnit {
 		return BitUnit.PIBIT.convert(d, this);
 	}
 
-	public final double toKibit(double d, int wordSize){
+	public final double toKibit(double d, int wordSize) {
 		return BitUnit.KIBIT.convert(d, this, wordSize);
 	}
 
