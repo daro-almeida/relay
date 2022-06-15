@@ -4,6 +4,9 @@ import subprocess
 import time
 from collections import defaultdict as dd
 
+host_extra_args = dd(list)
+relay_to_id_range = dd(tuple)
+
 
 def determine_relays_sleep_time(args):
     sleep = 7
@@ -13,7 +16,7 @@ def determine_relays_sleep_time(args):
 
 
 def determine_nodes_sleep_time(args):
-    sleep = 1
+    sleep = 3
     if args.no_gc_nodes:
         sleep += 15
     if args.sleep:
@@ -63,7 +66,6 @@ def build_start_relay_command(relay_host, i, args):
 
 
 def map_relay_to_id_range(args, relay_dict):
-    result = dd(tuple)
     relay_id = 0
     r = int(args.nodes % args.relays)
     for relay_address, _ in relay_dict.items():
@@ -71,10 +73,8 @@ def map_relay_to_id_range(args, relay_dict):
             size = int(int(args.nodes / args.relays) + (1 if r > relay_id else 0))
             start = int(relay_id * int(args.nodes / args.relays) + max(0, min(r, relay_id)))
             end = int(start + size - 1)
-            result[(relay_address, relay_port)] = (start, end)
+            relay_to_id_range[(relay_address, relay_port)] = (start, end)
             relay_id += 1
-
-    return result
 
 
 def relay_from_map(i):
@@ -103,7 +103,7 @@ def build_start_node_command(node_host, i, args):
         if args.extra_args:
             command.extend(args.extra_args)
         if args.extra_args_config:
-            command.extend(host_extra_args[node_host[0]])
+            command.extend(host_extra_args["%s:%s" % (node_host[0], node_host[1])])
     command.append("\n")
     if args.sleep:
         command.extend(["sleep", str(args.sleep), "\n"])
@@ -129,25 +129,21 @@ def run_processes(host_dict, build_command_func, args):
 
 
 def get_extra_args_per_host(args):
-    extra_args_per_host = dd(list)
     with open(args.extra_args_config, "r") as config:
         for line in config.readlines():
             parts = line.split(None, 1)
-            extra_args_per_host[parts[0]] = parts[1].split(" ")
-    return extra_args_per_host
+            host_extra_args[parts[0]] = parts[1].split(" ")
 
 
 def start_experiment(relay_dict, node_dict, args):
-    global host_extra_args
-    global relay_to_id_range
     print("Starting up relays...")
     run_processes(relay_dict, build_start_relay_command, args)
     time.sleep(determine_relays_sleep_time(args))
     print("::::::RELAYS RUNNING::::::")
 
-    relay_to_id_range = map_relay_to_id_range(args, relay_dict)
+    map_relay_to_id_range(args, relay_dict)
     if args.extra_args_config:
-        host_extra_args = get_extra_args_per_host(args)
+        get_extra_args_per_host(args)
 
     print("Starting up nodes...")
     run_processes(node_dict, build_start_node_command, args)
