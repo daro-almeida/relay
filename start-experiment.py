@@ -58,6 +58,8 @@ def build_start_relay_command(relay_host, i, args):
         command.append("-no_gc")
     if args.latency_matrix:
         command.extend(["-lm", args.latency_matrix])
+    if args.bandwidth_config:
+        command.extend(["-bc", args.bandwidth_config])
     if args.verbose:
         command.append("-v")
     command.append("\n")
@@ -192,6 +194,7 @@ def main() -> int:
     parser.add_argument("-lf", "--log_folder", default="logs/", help="log folder")
     parser.add_argument("-cf", "--config_file", default="config.properties", help="config file for nodes")
     parser.add_argument("-lm", "--latency_matrix", help="file with latency matrix")
+    parser.add_argument("-bc", "--bandwidth_config", help="file with bandwidth configuration")
     parser.add_argument("-e", "--extra_args", default=[], nargs="*", help="extra arguments for nodes")
     parser.add_argument("-ec", "--extra_args_config", help="file that specifies extra arguments for each node")
     parser.add_argument("-v", "--verbose", action="store_true", help="show process being launched for debugging")

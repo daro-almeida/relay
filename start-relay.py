@@ -17,6 +17,8 @@ def generate_command(args):
          "-p", str(args.port)])
     if args.latency_matrix:
         command.extend(["-lm", args.latency_matrix])
+    if args.bandwidth_config:
+        command.extend(["-bc", args.bandwidth_config])
     # command.append("&")
     return command
 
@@ -42,6 +44,7 @@ def main() -> int:
                         help="local private address")
     parser.add_argument("-p", "--port", type=int, default=9082, help="relay port")
     parser.add_argument("-lm", "--latency_matrix", help="file with latency matrix")
+    parser.add_argument("-bc", "--bandwidth_config", help="file with bandwidth configuration")
     parser.add_argument("-v", "--verbose", action="store_true", help="show process being launched for debugging")
 
     args = parser.parse_args()
