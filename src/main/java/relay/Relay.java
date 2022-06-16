@@ -59,13 +59,14 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 	private final LatencyMatrix latencyMatrix;
 
-	private final Map<Host, Connection<RelayMessage>> peerToRelayConnections;
-	private final Map<Host, Connection<RelayMessage>> otherRelayConnections;
-	private final Map<Host, Host> assignedRelayPerPeer;
-	private final Map<Host, EventLoop> loopPerSender;
+	protected final Map<Host, Connection<RelayMessage>> peerToRelayConnections;
+	protected final Map<Host, Connection<RelayMessage>> otherRelayConnections;
+	protected final Map<Host, Host> assignedRelayPerPeer;
+	protected final Map<Host, EventLoop> loopPerSender;
 
 	private final int relayID;
-	private final Host self;
+	protected final Host self;
+	protected final List<Host> peerList;
 	private final List<Host> relayList;
 
 
@@ -107,13 +108,13 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		otherRelayConnections = new HashMap<>(numRelays - 1);
 		assignedRelayPerPeer = new HashMap<>(numPeers);
 
-		List<Host> peerList = ConfigUtils.configToHostList(hostsConfig, numPeers);
+		peerList = ConfigUtils.configToHostList(hostsConfig, numPeers);
 		Pair<Integer, Integer> range = peerRange(numPeers, relayID, numRelays);
 		latencyMatrix = new LatencyMatrix(peerList, latencyConfig, range.getLeft(), range.getRight());
 
 		relayList = ConfigUtils.configToHostList(relayConfig, numRelays);
 
-		assignPeersToRelays(peerList, relayList, numRelays, numPeers);
+		assignPeersToRelays(numRelays, numPeers);
 
 		new Timer().schedule(new TimerTask() {
 			@Override
@@ -143,7 +144,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		}
 	}
 
-	private void assignPeersToRelays(List<Host> peerList, List<Host> relayList, int numRelays, int numPeers) {
+	private void assignPeersToRelays(int numRelays, int numPeers) {
 		for (int i = 0; i < numRelays; i++) {
 			Pair<Integer, Integer> range = peerRange(numPeers, i, numRelays);
 			for (int j = range.getLeft(); j <= range.getRight(); j++) {
@@ -389,7 +390,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		return channel != null && channel.equals(PROXY_MAGIC_NUMBER);
 	}
 
-	private void sendMessageWithDelay(RelayMessage msg) {
+	protected void sendMessageWithDelay(RelayMessage msg) {
 		Host receiver = msg.getTo();
 		Host sender = msg.getFrom();
 
@@ -421,7 +422,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		return (long) (latency - averageError) * 1000;
 	}
 
-	private void sendMessage(RelayMessage msg, Connection<RelayMessage> con) {
+	protected void sendMessage(RelayMessage msg, Connection<RelayMessage> con) {
 		if (!disconnectedPeers.contains(msg.getTo())) {
 			con.sendMessage(msg);
 			logger.debug("Sending {} message {} to {} from {}", msg.getType().name(), msg.getSeqN(), msg.getTo(), msg.getFrom());

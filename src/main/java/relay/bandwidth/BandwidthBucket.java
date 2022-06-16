@@ -2,6 +2,8 @@ package relay.bandwidth;
 
 import relay.bandwidth.units.BitUnit;
 import relay.bandwidth.units.ByteUnit;
+import relay.messaging.RelayAppMessage;
+import relay.messaging.RelayMessage;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -9,7 +11,7 @@ import java.util.TimerTask;
 public class BandwidthBucket {
 
 	private static final short CONTROL_PACKET_SIZE = 20;
-	private static final int FREQUENCY = 1000;
+	private static final int FREQUENCY = 1;
 	private static final ByteUnit BUCKET_UNIT = ByteUnit.BYTE;
 	private final Timer timer;
 	private double capacity;
@@ -30,11 +32,11 @@ public class BandwidthBucket {
 		this.capacity = BUCKET_UNIT.convert(capacity, unit);
 	}
 
-	public void addNormalPacketAndWait(int contentSize) {
+	private void addNormalPacketAndWait(int contentSize) {
 		addToBucket(CONTROL_PACKET_SIZE + contentSize);
 	}
 
-	public void addControlPacketAndWait() {
+	private void addControlPacketAndWait() {
 		addToBucket(CONTROL_PACKET_SIZE);
 	}
 
@@ -61,7 +63,7 @@ public class BandwidthBucket {
 			@Override
 			public void run() {
 				synchronized (this) {
-					currentSize = Math.max(currentSize - capacity /* * (FREQUENCY/1000)*/, 0);
+					currentSize = Math.max(currentSize - capacity * ((float) FREQUENCY/1000), 0);
 					if (isEmpty())
 						timer.cancel();
 					if (!isFull())
@@ -72,10 +74,24 @@ public class BandwidthBucket {
 	}
 
 	private boolean isFull() {
-		return currentSize >= capacity;
+		return currentSize > capacity;
 	}
 
 	private boolean isEmpty() {
 		return currentSize == 0;
+	}
+
+	public void addPacketAndWait(RelayMessage msg) {
+		switch (msg.getType()) {
+			case APP_MSG:
+				addNormalPacketAndWait(((RelayAppMessage) msg).getPayload().length);
+				break;
+			case CONN_OPEN:
+			case CONN_CLOSE:
+			case CONN_ACCEPT:
+			case CONN_FAIL:
+			case PEER_DEAD:
+				addControlPacketAndWait();
+		}
 	}
 }

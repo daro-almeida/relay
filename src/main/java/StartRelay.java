@@ -2,12 +2,15 @@ import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
+import relay.BWLatencyRelay;
 import relay.Relay;
 
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Properties;
 
 import static relay.Relay.*;
@@ -29,10 +32,13 @@ public class StartRelay {
 		properties.put(RELAY_ID, ns.getInt("relay_id").toString());
 
 		try (FileInputStream hostsConfig = new FileInputStream(ns.getString("list_nodes"));
-			 FileInputStream relayConfig = new FileInputStream(ns.getString("list_relays"));
+			 FileInputStream relaysConfig = new FileInputStream(ns.getString("list_relays"));
 			 FileInputStream latencyConfig = new FileInputStream(ns.getString("latency_matrix"))) {
 
-			new Relay(properties, hostsConfig, relayConfig, latencyConfig);
+			if(ns.getString("bandwidth_config") == null)
+				new Relay(properties, hostsConfig, relaysConfig, latencyConfig);
+			else
+				new BWLatencyRelay(properties, hostsConfig, relaysConfig, latencyConfig, Files.newInputStream(Paths.get(ns.getString("bandwidth_config"))));
 		}
 	}
 
@@ -46,6 +52,7 @@ public class StartRelay {
 		parser.addArgument("-a", "--address").setDefault(InetAddress.getLocalHost().getHostAddress()).help("local private address");
 		parser.addArgument("-p", "--port").type(Integer.class).setDefault(9082).help("relay port");
 		parser.addArgument("-lm", "--latency_matrix").help("file with latency matrix");
+		parser.addArgument("-bc", "--bandwidth_config").help("file with bandwidth config for nodes");
 
 		try {
 			return parser.parseArgs(args);

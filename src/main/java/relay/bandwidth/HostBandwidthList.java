@@ -17,7 +17,7 @@ public class HostBandwidthList extends HostPropertyList<Pair<BandwidthBucket, Ba
 
 	private static final Pattern PATTERN = Pattern.compile("(\\d+([.]\\d*)?|[.]\\d+)(.+)");
 
-	protected HostBandwidthList(List<Host> hostList, InputStream bandwidthConfig) throws IOException {
+	public HostBandwidthList(List<Host> hostList, InputStream bandwidthConfig) throws IOException {
 		super(hostList, bandwidthConfig);
 	}
 
@@ -61,8 +61,8 @@ public class HostBandwidthList extends HostPropertyList<Pair<BandwidthBucket, Ba
 		Matcher matcherIn = PATTERN.matcher(inStr);
 		BandwidthBucket inBandwidth = parseBandwidth(matcherIn);
 
-		Matcher matcherOut = PATTERN.matcher(inStr);
-		BandwidthBucket outBandwidth = parseBandwidth(matcherIn);
+		Matcher matcherOut = PATTERN.matcher(outStr);
+		BandwidthBucket outBandwidth = parseBandwidth(matcherOut);
 
 		return new ImmutablePair<>(inBandwidth, outBandwidth);
 	}

@@ -22,6 +22,10 @@ public class RelayAppMessage extends RelayMessage {
 	};
 	private final byte[] payload;
 
+	public byte[] getPayload() {
+		return payload;
+	}
+
 	public RelayAppMessage(Host from, Host to, byte[] payload) {
 		super(from, to, Type.APP_MSG);
 		this.payload = payload;
