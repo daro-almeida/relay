@@ -1,5 +1,7 @@
 package relay.bandwidth;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import relay.bandwidth.units.BitUnit;
 import relay.bandwidth.units.ByteUnit;
 import relay.messaging.RelayAppMessage;
@@ -9,6 +11,8 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class BandwidthBucket {
+
+	private static final Logger logger = LogManager.getLogger(BandwidthBucket.class);
 
 	private static final short CONTROL_PACKET_SIZE = 20;
 	private static final int FREQUENCY = 1;
@@ -20,6 +24,7 @@ public class BandwidthBucket {
 	private BandwidthBucket() {
 		this.currentSize = 0;
 		this.timer = new Timer();
+		startTimer();
 	}
 
 	public BandwidthBucket(double capacity, ByteUnit unit) {
@@ -43,9 +48,8 @@ public class BandwidthBucket {
 	private void addToBucket(double amount) {
 		if (amount <= 0)
 			return;
-		if (isEmpty())
-			startTimer();
-		currentSize += amount; //BUCKET_UNIT.convert(amount, ByteUnit.BYTE);
+		currentSize += amount;
+		logger.trace(currentSize + "/" + capacity);
 
 		synchronized (this) {
 			while (isFull()) {
@@ -64,8 +68,6 @@ public class BandwidthBucket {
 			public void run() {
 				synchronized (this) {
 					currentSize = Math.max(currentSize - capacity * ((float) FREQUENCY/1000), 0);
-					if (isEmpty())
-						timer.cancel();
 					if (!isFull())
 						this.notify();
 				}
@@ -75,10 +77,6 @@ public class BandwidthBucket {
 
 	private boolean isFull() {
 		return currentSize > capacity;
-	}
-
-	private boolean isEmpty() {
-		return currentSize == 0;
 	}
 
 	public void addPacketAndWait(RelayMessage msg) {

@@ -409,11 +409,11 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	}
 
 	public long calculateDelay(Host sender, Host receiver) {
-		float averageError;
-		if (assignedRelayPerPeer.get(sender).equals(self))
+		float averageError = 0;
+		/*if (assignedRelayPerPeer.get(sender).equals(self))
 			averageError = AVERAGE_ERROR_SAME_RELAY;
 		else
-			averageError = AVERAGE_ERROR_DIFFERENT_RELAYS;
+			averageError = AVERAGE_ERROR_DIFFERENT_RELAYS;*/
 
 		Float latency = latencyMatrix.getProperty(sender, receiver);
 		if (latency == null)

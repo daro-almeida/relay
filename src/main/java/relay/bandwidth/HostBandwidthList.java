@@ -9,6 +9,7 @@ import relay.util.HostPropertyList;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -22,9 +23,13 @@ public class HostBandwidthList extends HostPropertyList<Pair<BandwidthBucket, Ba
 	}
 
 	private static BandwidthBucket parseBandwidth(Matcher match) {
-		double bandwidth = Double.parseDouble(match.group(0));
-
-		ThroughputType type = ThroughputType.valueOf(match.group(2));
+		double bandwidth;
+		ThroughputType type;
+		if(match.find()) {
+			bandwidth = Double.parseDouble(match.group(1));
+			type = ThroughputType.valueOf(match.group(3).toUpperCase());
+		} else
+			throw new IllegalArgumentException("Bandwidth configuration usage per line: <in_bw_quant><throughput_type_in> <out_bw_quant><throughput_type_out>");
 
 		switch (type) {
 			case BPS:
@@ -48,7 +53,7 @@ public class HostBandwidthList extends HostPropertyList<Pair<BandwidthBucket, Ba
 			case PB:
 				return new BandwidthBucket(bandwidth, ByteUnit.PB);
 			default:
-				throw new IllegalStateException("Unexpected value: " + type);
+				throw new IllegalStateException("Illegal throughput type: " + type + "Valid ones " + Arrays.toString(ThroughputType.values()));
 		}
 	}
 
