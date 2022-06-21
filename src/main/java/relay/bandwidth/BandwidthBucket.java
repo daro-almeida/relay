@@ -49,7 +49,9 @@ public class BandwidthBucket {
 		if (amount <= 0)
 			return;
 		currentSize += amount;
-		logger.trace(currentSize + "/" + capacity);
+		if(currentSize > capacity) {
+			logger.trace(currentSize + "/" + capacity);
+		}
 
 		synchronized (this) {
 			while (isFull()) {
