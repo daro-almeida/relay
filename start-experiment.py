@@ -10,7 +10,7 @@ relay_to_id_range = dd(tuple)
 
 def determine_relays_sleep_time(args):
     sleep = 6
-    sleep += args.relays * 0.5
+    sleep += args.relays * 0.8
     if args.no_gc_relays:
         sleep += 15
     return sleep
@@ -37,7 +37,7 @@ def hosts_from_file(filename, num):
         n = 0
         for line in lines:
             host = parse_line_to_host(line)
-            hosts[host[0]].append(host[1])
+            hosts[host[0]].append((n, host[1]))
             n += 1
             if n >= num:
                 break
@@ -69,15 +69,14 @@ def build_start_relay_command(relay_host, i, args):
 
 
 def map_relay_to_id_range(args, relay_dict):
-    relay_id = 0
     r = int(args.nodes % args.relays)
     for relay_address, _ in relay_dict.items():
         for relay_port in relay_dict[relay_address]:
+            relay_id = relay_port[0]
             size = int(int(args.nodes / args.relays) + (1 if r > relay_id else 0))
             start = int(relay_id * int(args.nodes / args.relays) + max(0, min(r, relay_id)))
             end = int(start + size - 1)
-            relay_to_id_range[(relay_address, relay_port)] = (start, end)
-            relay_id += 1
+            relay_to_id_range[(relay_address, relay_port[1])] = (start, end)
 
 
 def relay_from_map(i):
@@ -115,7 +114,6 @@ def build_start_node_command(node_host, i, args):
 
 
 def run_processes(host_dict, build_command_func, args):
-    i = 0
     for host_address, _ in host_dict.items():
         command = ["ssh" if args.ssh else "oarsh"]
         command.extend([host_address, "\n"])
@@ -123,8 +121,7 @@ def run_processes(host_dict, build_command_func, args):
             command.extend(["cd", args.cd, "\n"])
 
         for host_port in host_dict[host_address]:
-            command.extend(build_command_func((host_address, host_port), i, args))
-            i += 1
+            command.extend(build_command_func((host_address, host_port[1]), host_port[0], args))
         if args.oar_job_id and not args.ssh:
             subprocess.Popen(command, env=dict(OAR_JOB_ID=str(args.oar_job_id), **os.environ))
         else:
