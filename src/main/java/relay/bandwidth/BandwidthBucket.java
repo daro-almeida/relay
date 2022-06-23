@@ -59,11 +59,12 @@ public class BandwidthBucket {
 
 		if (isFull()) {
 			queue.add(new MutablePair<>(amount, runnable));
+			logger.trace("Queue done. {}/{}, {}", currentSize, capacity, queue.size());
 		} else {
 			currentSize += amount;
 			if(isFull()) {
-				logger.trace("{}/{}", currentSize, capacity);
 				queue.add(new MutablePair<>(0D, runnable));
+				logger.trace("Queue done. {}/{}, {}", currentSize, capacity, queue.size());
 			} else
 				new Thread(runnable).start();
 		}
@@ -82,6 +83,7 @@ public class BandwidthBucket {
 						p.setLeft(0D);
 					else {
 						queue.remove();
+						logger.trace("Dequeue done. {}/{}, {}", currentSize, capacity, queue.size());
 						new Thread(p.getRight()).start();
 					}
 				}
