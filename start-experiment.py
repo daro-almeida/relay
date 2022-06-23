@@ -9,7 +9,8 @@ relay_to_id_range = dd(tuple)
 
 
 def determine_relays_sleep_time(args):
-    sleep = 7
+    sleep = 6
+    sleep += args.relays * 0.5
     if args.no_gc_relays:
         sleep += 15
     return sleep
