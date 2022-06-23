@@ -88,7 +88,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 		int numPeersOfThisRelay = numPeersOfRelay(numPeers, relayID, numRelays);
 
-		EventLoopGroup eventExecutors = properties.containsKey(WORKER_GROUP_KEY) ? (EventLoopGroup) properties.get(WORKER_GROUP_KEY) : NetworkManager.createNewWorkerGroup(numPeersOfThisRelay + numRelays - 1);
+		EventLoopGroup eventExecutors = properties.containsKey(WORKER_GROUP_KEY) ? (EventLoopGroup) properties.get(WORKER_GROUP_KEY) : NetworkManager.createNewWorkerGroup();
 		RelayMessageSerializer tRelayMessageSerializer = new RelayMessageSerializer();
 		network = new NetworkManager<>(tRelayMessageSerializer, this, hbInterval, hbTolerance, connTimeout);
 		network.createServerSocket(this, self, this, eventExecutors);

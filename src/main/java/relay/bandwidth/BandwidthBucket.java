@@ -1,5 +1,8 @@
 package relay.bandwidth;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import relay.bandwidth.units.BitUnit;
@@ -7,6 +10,8 @@ import relay.bandwidth.units.ByteUnit;
 import relay.messaging.RelayAppMessage;
 import relay.messaging.RelayMessage;
 
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -17,12 +22,15 @@ public class BandwidthBucket {
 	private static final short CONTROL_PACKET_SIZE = 20;
 	private static final int FREQUENCY = 1;
 	private static final ByteUnit BUCKET_UNIT = ByteUnit.BYTE;
+
 	private final Timer timer;
+	private final Queue<MutablePair<Double, Runnable>> queue;
 	private double capacity;
 	private double currentSize;
 
 	private BandwidthBucket() {
 		this.currentSize = 0;
+		this.queue = new LinkedList<>();
 		this.timer = new Timer();
 		startTimer();
 	}
@@ -37,41 +45,45 @@ public class BandwidthBucket {
 		this.capacity = BUCKET_UNIT.convert(capacity, unit);
 	}
 
-	private void addNormalPacketAndWait(int contentSize) {
-		addToBucket(CONTROL_PACKET_SIZE + contentSize);
+	private void addNormalPacket(int contentSize, Runnable runnable) {
+		addToBucket(CONTROL_PACKET_SIZE + contentSize, runnable);
 	}
 
-	private void addControlPacketAndWait() {
-		addToBucket(CONTROL_PACKET_SIZE);
+	private void addControlPacket(Runnable runnable) {
+		addToBucket(CONTROL_PACKET_SIZE, runnable);
 	}
 
-	private void addToBucket(double amount) {
+	private void addToBucket(double amount, Runnable runnable) {
 		if (amount <= 0)
 			return;
-		currentSize += amount;
-		if(currentSize > capacity) {
-			logger.trace(currentSize + "/" + capacity);
+
+		if (isFull()) {
+			queue.add(new MutablePair<>(amount, runnable));
+		} else {
+			currentSize += amount;
+			if(isFull()) {
+				logger.trace("{}/{}", currentSize, capacity);
+				queue.add(new MutablePair<>(0D, runnable));
+			} else
+				new Thread(runnable).start();
 		}
 
-		synchronized (this) {
-			while (isFull()) {
-				try {
-					this.wait();
-				} catch (InterruptedException e) {
-					//do nothing
-				}
-			}
-		}
 	}
 
 	private void startTimer() {
 		timer.scheduleAtFixedRate(new TimerTask() {
 			@Override
 			public void run() {
-				synchronized (this) {
-					currentSize = Math.max(currentSize - capacity * ((float) FREQUENCY/1000), 0);
-					if (!isFull())
-						this.notify();
+				currentSize = Math.max(currentSize - capacity * ((float) FREQUENCY/1000), 0);
+				while (!isFull() && !queue.isEmpty()) {
+					MutablePair<Double, Runnable> p = queue.peek();
+					currentSize += p.getLeft();
+					if (isFull())
+						p.setLeft(0D);
+					else {
+						queue.remove();
+						new Thread(p.getRight()).start();
+					}
 				}
 			}
 		}, FREQUENCY, FREQUENCY);
@@ -81,17 +93,17 @@ public class BandwidthBucket {
 		return currentSize > capacity;
 	}
 
-	public void addPacketAndWait(RelayMessage msg) {
+	public void enqueue(RelayMessage msg, Runnable runnable) {
 		switch (msg.getType()) {
 			case APP_MSG:
-				addNormalPacketAndWait(((RelayAppMessage) msg).getPayload().length);
+				addNormalPacket(((RelayAppMessage) msg).getPayload().length, runnable);
 				break;
 			case CONN_OPEN:
 			case CONN_CLOSE:
 			case CONN_ACCEPT:
 			case CONN_FAIL:
 			case PEER_DEAD:
-				addControlPacketAndWait();
+				addControlPacket(runnable);
 		}
 	}
 }
