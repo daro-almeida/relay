@@ -46,7 +46,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	private static final float DEFAULT_LATENCY = 0;
 	private static final float AVERAGE_ERROR_DIFFERENT_RELAYS = 2;
 	private static final float AVERAGE_ERROR_SAME_RELAY = 1.561F;
-	private static final long CONNECT_RELAYS_WAIT = 5000;
+	private static final long CONNECT_RELAYS_WAIT = 7000;
 	private static final Logger logger = LogManager.getLogger(Relay.class);
 	private static final Short PROXY_MAGIC_NUMBER = 0x1369;
 
