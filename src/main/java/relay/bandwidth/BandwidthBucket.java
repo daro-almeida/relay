@@ -78,13 +78,15 @@ public class BandwidthBucket {
 				currentSize = Math.max(currentSize - capacity * ((float) FREQUENCY/1000), 0);
 				while (!isFull() && !queue.isEmpty()) {
 					MutablePair<Double, Runnable> p = queue.peek();
-					currentSize += p.getLeft();
-					if (isFull())
-						p.setLeft(0D);
-					else {
-						queue.remove();
-						logger.trace("Dequeue done. {}/{}, {}", currentSize, capacity, queue.size());
-						new Thread(p.getRight()).start();
+					if (p != null) {
+						currentSize += p.getLeft();
+						if (isFull())
+							p.setLeft(0D);
+						else {
+							queue.remove();
+							logger.trace("Dequeue done. {}/{}, {}", currentSize, capacity, queue.size());
+							new Thread(p.getRight()).start();
+						}
 					}
 				}
 			}
