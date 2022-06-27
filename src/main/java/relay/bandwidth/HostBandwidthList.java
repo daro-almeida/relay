@@ -25,7 +25,7 @@ public class HostBandwidthList extends HostPropertyList<Pair<BandwidthBucket, Ba
 	private static BandwidthBucket parseBandwidth(Matcher match) {
 		double bandwidth;
 		ThroughputType type;
-		if(match.find()) {
+		if (match.find()) {
 			bandwidth = Double.parseDouble(match.group(1));
 			type = ThroughputType.valueOf(match.group(3).toUpperCase());
 		} else

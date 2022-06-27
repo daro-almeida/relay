@@ -34,15 +34,13 @@ public class BWLatencyRelay extends Relay implements InConnListener<RelayMessage
 
 		} else {
 			long delay = calculateDelay(sender, receiver);
-			bwList.getOutBandwidthBucket(sender).enqueue(msg, () -> {
-				loop.schedule(() -> {
-					Host relayHost = assignedRelayPerPeer.get(receiver);
-					if (relayHost.equals(self)) {
-						bwList.getInBandwidthBucket(receiver).enqueue(msg, () -> sendMessage(msg,peerToRelayConnections.get(receiver)));
-					} else
-						sendMessage(msg,otherRelayConnections.get(relayHost));
-				}, delay, TimeUnit.MICROSECONDS);
-			});
+			bwList.getOutBandwidthBucket(sender).enqueue(msg, () -> loop.schedule(() -> {
+				Host relayHost = assignedRelayPerPeer.get(receiver);
+				if (relayHost.equals(self)) {
+					bwList.getInBandwidthBucket(receiver).enqueue(msg, () -> sendMessage(msg, peerToRelayConnections.get(receiver)));
+				} else
+					sendMessage(msg, otherRelayConnections.get(relayHost));
+			}, delay, TimeUnit.MICROSECONDS));
 
 		}
 	}

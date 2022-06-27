@@ -35,7 +35,7 @@ public class StartRelay {
 			 FileInputStream relaysConfig = new FileInputStream(ns.getString("list_relays"));
 			 FileInputStream latencyConfig = new FileInputStream(ns.getString("latency_matrix"))) {
 
-			if(ns.getString("bandwidth_config") == null)
+			if (ns.getString("bandwidth_config") == null)
 				new Relay(properties, hostsConfig, relaysConfig, latencyConfig);
 			else
 				new BWLatencyRelay(properties, hostsConfig, relaysConfig, latencyConfig, Files.newInputStream(Paths.get(ns.getString("bandwidth_config"))));

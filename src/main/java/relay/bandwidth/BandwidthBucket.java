@@ -1,8 +1,6 @@
 package relay.bandwidth;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.MutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import relay.bandwidth.units.BitUnit;
@@ -62,7 +60,7 @@ public class BandwidthBucket {
 			logger.trace("Queue done. {}/{}, {}", currentSize, capacity, queue.size());
 		} else {
 			currentSize += amount;
-			if(isFull()) {
+			if (isFull()) {
 				queue.add(new MutablePair<>(0D, runnable));
 				logger.trace("Queue done. {}/{}, {}", currentSize, capacity, queue.size());
 			} else
@@ -75,7 +73,7 @@ public class BandwidthBucket {
 		timer.scheduleAtFixedRate(new TimerTask() {
 			@Override
 			public void run() {
-				currentSize = Math.max(currentSize - capacity * ((float) FREQUENCY/1000), 0);
+				currentSize = Math.max(currentSize - capacity * ((float) FREQUENCY / 1000), 0);
 				while (!isFull() && !queue.isEmpty()) {
 					MutablePair<Double, Runnable> p = queue.peek();
 					if (p != null) {

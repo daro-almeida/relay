@@ -49,24 +49,19 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	private static final long CONNECT_RELAYS_WAIT = 7000;
 	private static final Logger logger = LogManager.getLogger(Relay.class);
 	private static final Short PROXY_MAGIC_NUMBER = 0x1369;
-
-	private final NetworkManager<RelayMessage> network;
-	private final Attributes attributes;
-
-	// left -> right
-	private final Set<Pair<Host, Host>> peerToPeerConnections;
-	private final Set<Host> disconnectedPeers;
-
-	private final LatencyMatrix latencyMatrix;
-
 	protected final Map<Host, Connection<RelayMessage>> peerToRelayConnections;
 	protected final Map<Host, Connection<RelayMessage>> otherRelayConnections;
 	protected final Map<Host, Host> assignedRelayPerPeer;
 	protected final Map<Host, EventLoop> loopPerSender;
-
-	private final int relayID;
 	protected final Host self;
 	protected final List<Host> peerList;
+	private final NetworkManager<RelayMessage> network;
+	private final Attributes attributes;
+	// left -> right
+	private final Set<Pair<Host, Host>> peerToPeerConnections;
+	private final Set<Host> disconnectedPeers;
+	private final LatencyMatrix latencyMatrix;
+	private final int relayID;
 	private final List<Host> relayList;
 
 
