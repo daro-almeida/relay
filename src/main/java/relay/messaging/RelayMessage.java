@@ -40,6 +40,16 @@ public abstract class RelayMessage {
 		return to;
 	}
 
+	@Override
+	public String toString() {
+		return "RelayMessage{" +
+				"from=" + from +
+				", to=" + to +
+				", seqN=" + seqN +
+				", type=" + type +
+				'}';
+	}
+
 	public enum Type {
 		APP_MSG(0, RelayAppMessage.serializer),
 		CONN_OPEN(1, RelayConnectionOpenMessage.serializer),

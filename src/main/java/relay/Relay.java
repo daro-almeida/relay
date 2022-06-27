@@ -44,9 +44,9 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	public static final String DEFAULT_HB_TOLERANCE = "0";
 	public static final String DEFAULT_CONNECT_TIMEOUT = "1000";
 	private static final float DEFAULT_LATENCY = 0;
-	private static final float AVERAGE_ERROR_DIFFERENT_RELAYS = 2;
-	private static final float AVERAGE_ERROR_SAME_RELAY = 1.561F;
-	private static final long CONNECT_RELAYS_WAIT = 7000;
+	private static final float AVERAGE_ERROR_DIFFERENT_RELAYS = 1.8F;
+	private static final float AVERAGE_ERROR_SAME_RELAY = 1;
+	private static final long CONNECT_RELAYS_WAIT = 5000;
 	private static final Logger logger = LogManager.getLogger(Relay.class);
 	private static final Short PROXY_MAGIC_NUMBER = 0x1369;
 	protected final Map<Host, Connection<RelayMessage>> peerToRelayConnections;
@@ -201,44 +201,50 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 	@Override
 	public void inboundConnectionUp(Connection<RelayMessage> connection) {
-		Host clientSocket;
+		Host clientSocket = null;
 		try {
 			clientSocket = connection.getPeerAttributes().getHost(LISTEN_ADDRESS_ATTRIBUTE);
 		} catch (IOException ex) {
-			throw new RuntimeException("Error parsing LISTEN_ADDRESS_ATTRIBUTE of inbound connection: " + ex.getMessage());
+			logger.fatal("Error parsing LISTEN_ADDRESS_ATTRIBUTE of inbound connection: " + ex.getMessage());
 		}
 
 		if (clientSocket == null) {
-			throw new RuntimeException("Inbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
+			logger.fatal("Inbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
 		} else {
 
 			logger.trace("InboundConnectionUp {}", clientSocket);
 			Connection<RelayMessage> old;
-			if (relayList.contains(clientSocket))
+			if (relayList.contains(clientSocket)) {
+				logger.info("Relay {}: Connected to relay {}", self, clientSocket);
 				old = otherRelayConnections.putIfAbsent(clientSocket, connection);
+			}
 			else {
+				logger.info("Peer {}: Connected to relay {}", self, clientSocket);
 				old = peerToRelayConnections.putIfAbsent(clientSocket, connection);
 				loopPerSender.put(clientSocket, new DefaultEventLoop());
 			}
 
 			if (old != null)
-				throw new RuntimeException("Double incoming connection from: " + clientSocket + " (" + connection.getPeer() + ")");
+				logger.fatal("Double incoming connection from: " + clientSocket + " (" + connection.getPeer() + ")");
 		}
 	}
 
 	@Override
 	public void inboundConnectionDown(Connection<RelayMessage> connection, Throwable cause) {
-		Host clientSocket;
+		Host clientSocket = null;
 		try {
 			clientSocket = connection.getPeerAttributes().getHost(LISTEN_ADDRESS_ATTRIBUTE);
 		} catch (IOException ex) {
-			throw new RuntimeException("Inbound connection without valid listen address in connectionDown: " + ex.getMessage());
+			logger.fatal("Inbound connection without valid listen address in connectionDown: " + ex.getMessage());
 		}
 
 		if (clientSocket == null) {
-			throw new RuntimeException("Inbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
+			logger.fatal("Inbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
 		} else {
-			throw new RuntimeException("Peer " + clientSocket + " disconnected from relay unexpectedly! cause:" + ((cause == null) ? "" : " " + cause));
+			if (relayList.contains(clientSocket))
+				logger.fatal("Relay " + clientSocket + " disconnected from relay unexpectedly! cause:" + ((cause == null) ? "" : " " + cause));
+			else
+				logger.fatal("Peer " + clientSocket + " disconnected from relay unexpectedly! cause:" + ((cause == null) ? "" : " " + cause));
 		}
 	}
 
@@ -247,25 +253,26 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		Host clientSocket = connection.getPeer();
 
 		logger.trace("OutboundConnectionUp {}", clientSocket);
+		logger.info("Relay {}: Connected to relay {}", self, clientSocket);
 		Connection<RelayMessage> old = this.otherRelayConnections.putIfAbsent(clientSocket, connection);
 
 		if (old != null)
-			throw new RuntimeException("Double outgoing connection with: " + clientSocket + " (" + connection.getPeer() + ")");
+			logger.fatal("Double outgoing connection with: " + clientSocket + " (" + connection.getPeer() + ")");
 	}
 
 	@Override
 	public void outboundConnectionDown(Connection<RelayMessage> connection, Throwable cause) {
-		Host clientSocket;
+		Host clientSocket = null;
 		try {
 			clientSocket = connection.getPeerAttributes().getHost(LISTEN_ADDRESS_ATTRIBUTE);
 		} catch (IOException ex) {
-			throw new RuntimeException("Outbound connection without valid listen address in connectionDown: " + ex.getMessage());
+			logger.fatal("Outbound connection without valid listen address in connectionDown: " + ex.getMessage());
 		}
 
 		if (clientSocket == null) {
-			throw new RuntimeException("Outbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
+			logger.fatal("Outbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
 		} else {
-			throw new RuntimeException("Relay " + clientSocket + " disconnected unexpectedly! cause:" + ((cause == null) ? "" : " " + cause));
+			logger.fatal("Relay " + clientSocket + " disconnected unexpectedly! cause:" + ((cause == null) ? "" : " " + cause));
 		}
 	}
 
@@ -278,13 +285,13 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		if (success) {
 			logger.trace("Server socket ready");
 		} else {
-			throw new RuntimeException("Server socket bind failed: " + cause);
+			logger.fatal("Server socket bind failed: " + cause);
 		}
 
 	}
 
 	public void serverSocketClose(boolean success, Throwable cause) {
-		throw new RuntimeException("Server socket closed. " + (success ? "" : "Cause: " + cause));
+		logger.fatal("Server socket closed. " + (success ? "" : "Cause: " + cause));
 	}
 
 	@Override
@@ -391,13 +398,21 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 		EventLoop loop = loopPerSender.get(sender);
 		if (loop == null) {
+			assert peerToRelayConnections.get(receiver) != null;
 			sendMessage(msg, peerToRelayConnections.get(receiver));
 		} else {
 			long delay = calculateDelay(sender, receiver);
 
 			loop.schedule(() -> {
 				Host relayHost = assignedRelayPerPeer.get(receiver);
-				Connection<RelayMessage> con = (relayHost.equals(self)) ? peerToRelayConnections.get(receiver) : otherRelayConnections.get(relayHost);
+				Connection<RelayMessage> con;
+				if (relayHost.equals(self)) {
+					assert peerToRelayConnections.get(receiver) != null;
+					con = peerToRelayConnections.get(receiver);
+				} else {
+					assert otherRelayConnections.get(relayHost) != null;
+					con = otherRelayConnections.get(relayHost);
+				}
 				sendMessage(msg, con);
 			}, delay, TimeUnit.MICROSECONDS);
 		}
@@ -405,10 +420,10 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 	public long calculateDelay(Host sender, Host receiver) {
 		float averageError = 0;
-		/*if (assignedRelayPerPeer.get(sender).equals(self))
+		if (assignedRelayPerPeer.get(sender).equals(self))
 			averageError = AVERAGE_ERROR_SAME_RELAY;
 		else
-			averageError = AVERAGE_ERROR_DIFFERENT_RELAYS;*/
+			averageError = AVERAGE_ERROR_DIFFERENT_RELAYS;
 
 		Float latency = latencyMatrix.getProperty(sender, receiver);
 		if (latency == null)
@@ -419,8 +434,12 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 	protected void sendMessage(RelayMessage msg, Connection<RelayMessage> con) {
 		if (!disconnectedPeers.contains(msg.getTo())) {
-			con.sendMessage(msg);
-			logger.debug("Sending {} message {} to {} from {}", msg.getType().name(), msg.getSeqN(), msg.getTo(), msg.getFrom());
+			if (con == null) {
+				logger.error("{}: Null connection with {}, {}, {}", self, msg, peerToRelayConnections.get(msg.getFrom()), peerToRelayConnections.get(msg.getTo()));
+			} else {
+				con.sendMessage(msg);
+				logger.debug("Sending {} message {} to {} from {}", msg.getType().name(), msg.getSeqN(), msg.getTo(), msg.getFrom());
+			}
 		}
 	}
 
