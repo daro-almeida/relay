@@ -9,8 +9,9 @@ relay_to_id_range = dd(tuple)
 
 
 def determine_relays_sleep_time(args):
-    sleep = 8
-    sleep += args.relays * 0.8
+    sleep = 3
+    if args.relays > 1:
+        sleep += 4 + args.relays * 0.8
     if args.no_gc_relays:
         sleep += 15
     return sleep
@@ -61,6 +62,8 @@ def build_start_relay_command(relay_host, i, args):
         command.extend(["-lm", args.latency_matrix])
     if args.bandwidth_config:
         command.extend(["-bc", args.bandwidth_config])
+    if args.relays > 1:
+        command.extend(["-s", str((4 + args.relays * 0.8)*1000)])
     if args.verbose:
         command.append("-v")
     command.append("\n")

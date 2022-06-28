@@ -54,7 +54,7 @@ public class StartRelay {
 		parser.addArgument("-p", "--port").type(Integer.class).setDefault(9082).help("relay port");
 		parser.addArgument("-lm", "--latency_matrix").help("file with latency matrix");
 		parser.addArgument("-bc", "--bandwidth_config").help("file with bandwidth config for nodes");
-		parser.addArgument("-s", "--sleep").type(Long.class).setDefault(5000).help("sleep time before connecting to other relays");
+		parser.addArgument("-s", "--sleep").type(Long.class).setDefault(4000).help("sleep time in ms before connecting to other relays");
 
 		try {
 			return parser.parseArgs(args);
