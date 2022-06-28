@@ -48,7 +48,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	private static final float AVERAGE_ERROR_SAME_RELAY = 1;
 	private static final long CONNECT_RELAYS_WAIT = 5000;
 	private static final Logger logger = LogManager.getLogger(Relay.class);
-	private static final Short PROXY_MAGIC_NUMBER = 0x1369;
+	private static final Short EMULATED_MAGIC_NUMBER = 0x1369;
 	protected final Map<Host, Connection<RelayMessage>> peerToRelayConnections;
 	protected final Map<Host, Connection<RelayMessage>> otherRelayConnections;
 	protected final Map<Host, Host> assignedRelayPerPeer;
@@ -89,7 +89,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		network.createServerSocket(this, self, this, eventExecutors);
 
 		attributes = new Attributes();
-		attributes.putShort(AttributeValidator.CHANNEL_MAGIC_ATTRIBUTE, PROXY_MAGIC_NUMBER);
+		attributes.putShort(AttributeValidator.CHANNEL_MAGIC_ATTRIBUTE, EMULATED_MAGIC_NUMBER);
 		attributes.putHost(LISTEN_ADDRESS_ATTRIBUTE, self);
 
 		peerToRelayConnections = new HashMap<>(numPeersOfThisRelay);
@@ -215,11 +215,11 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 			logger.trace("InboundConnectionUp {}", clientSocket);
 			Connection<RelayMessage> old;
 			if (relayList.contains(clientSocket)) {
-				logger.info("Relay {}: Connected to relay {}", self, clientSocket);
+				logger.info("Relay {}: Connected to relay {}", clientSocket, self);
 				old = otherRelayConnections.putIfAbsent(clientSocket, connection);
 			}
 			else {
-				logger.info("Peer {}: Connected to relay {}", self, clientSocket);
+				logger.info("Peer {}: Connected to relay {}", clientSocket, self);
 				old = peerToRelayConnections.putIfAbsent(clientSocket, connection);
 				loopPerSender.put(clientSocket, new DefaultEventLoop());
 			}
@@ -349,7 +349,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		logger.trace("Connection accepted message to {} from {}", to, from);
 
 		if (!peerToPeerConnections.contains(new ImmutablePair<>(to, from))) {
-			logger.trace("Connection accept with no out connection from {} to {}", from, to);
+			logger.trace("Connection accept with no out connection from {} to {}", to, from);
 			return;
 		}
 
@@ -389,7 +389,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	@Override
 	public boolean validateAttributes(Attributes attr) {
 		Short channel = attr.getShort(CHANNEL_MAGIC_ATTRIBUTE);
-		return channel != null && channel.equals(PROXY_MAGIC_NUMBER);
+		return channel != null && channel.equals(EMULATED_MAGIC_NUMBER);
 	}
 
 	protected void sendMessageWithDelay(RelayMessage msg) {
