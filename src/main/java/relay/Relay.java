@@ -37,6 +37,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	public static final String RELAY_ID = "relay_id";
 	public static final String NUM_RELAYS = "num_relays";
 	public static final String NUM_NODES = "num_peers";
+	public static final String SLEEP = "sleep";
 	public static final String WORKER_GROUP_KEY = "workerGroup";
 	public static final String LISTEN_ADDRESS_ATTRIBUTE = "listen_address";
 	public static final String DEFAULT_PORT = "9082";
@@ -46,7 +47,6 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	private static final float DEFAULT_LATENCY = 0;
 	private static final float AVERAGE_ERROR_DIFFERENT_RELAYS = 1.8F;
 	private static final float AVERAGE_ERROR_SAME_RELAY = 1;
-	private static final long CONNECT_RELAYS_WAIT = 5000;
 	private static final Logger logger = LogManager.getLogger(Relay.class);
 	private static final Short EMULATED_MAGIC_NUMBER = 0x1369;
 	protected final Map<Host, Connection<RelayMessage>> peerToRelayConnections;
@@ -111,12 +111,13 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 		assignPeersToRelays(numRelays, numPeers);
 
+		long sleep = Long.parseLong(properties.getProperty(SLEEP));
 		new Timer().schedule(new TimerTask() {
 			@Override
 			public void run() {
 				connectToRelays(numRelays);
 			}
-		}, CONNECT_RELAYS_WAIT);
+		}, sleep);
 	}
 
 	private static int numPeersOfRelay(int numPeers, int relayID, int numRelays) {
@@ -419,7 +420,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	}
 
 	public long calculateDelay(Host sender, Host receiver) {
-		float averageError = 0;
+		float averageError;
 		if (assignedRelayPerPeer.get(sender).equals(self))
 			averageError = AVERAGE_ERROR_SAME_RELAY;
 		else
