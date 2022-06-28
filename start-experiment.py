@@ -63,7 +63,7 @@ def build_start_relay_command(relay_host, i, args):
     if args.bandwidth_config:
         command.extend(["-bc", args.bandwidth_config])
     if args.relays > 1:
-        command.extend(["-s", str((4 + args.relays * 0.8)*1000)])
+        command.extend(["-s", str(int((4 + args.relays * 0.8)*1000))])
     if args.verbose:
         command.append("-v")
     command.append("\n")
