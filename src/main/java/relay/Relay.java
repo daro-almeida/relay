@@ -15,9 +15,9 @@ import pt.unl.fct.di.novasys.network.data.Host;
 import pt.unl.fct.di.novasys.network.listeners.InConnListener;
 import pt.unl.fct.di.novasys.network.listeners.MessageListener;
 import pt.unl.fct.di.novasys.network.listeners.OutConnListener;
+import relay.latency.LatencyMatrix;
 import relay.messaging.*;
 import relay.util.ConfigUtils;
-import relay.util.matrixes.LatencyMatrix;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,17 +44,20 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	public static final String DEFAULT_HB_INTERVAL = "0";
 	public static final String DEFAULT_HB_TOLERANCE = "0";
 	public static final String DEFAULT_CONNECT_TIMEOUT = "1000";
+
 	private static final float DEFAULT_LATENCY = 0;
 	private static final float AVERAGE_ERROR_DIFFERENT_RELAYS = 1.8F;
 	private static final float AVERAGE_ERROR_SAME_RELAY = 1;
 	private static final Logger logger = LogManager.getLogger(Relay.class);
 	private static final Short EMULATED_MAGIC_NUMBER = 0x1369;
+
 	protected final Map<Host, Connection<RelayMessage>> peerToRelayConnections;
 	protected final Map<Host, Connection<RelayMessage>> otherRelayConnections;
 	protected final Map<Host, Host> assignedRelayPerPeer;
 	protected final Map<Host, EventLoop> loopPerSender;
 	protected final Host self;
 	protected final List<Host> peerList;
+
 	private final NetworkManager<RelayMessage> network;
 	private final Attributes attributes;
 	// left -> right
@@ -63,6 +66,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	private final LatencyMatrix latencyMatrix;
 	private final int relayID;
 	private final List<Host> relayList;
+	private final Set<Host> relaySet;
 
 
 	public Relay(Properties properties, InputStream hostsConfig, InputStream relayConfig, InputStream latencyConfig) throws IOException {
@@ -108,6 +112,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		latencyMatrix = new LatencyMatrix(peerList, latencyConfig, range.getLeft(), range.getRight());
 
 		relayList = ConfigUtils.configToHostList(relayConfig, numRelays);
+		relaySet = new HashSet<>(relayList);
 
 		assignPeersToRelays(numRelays, numPeers);
 
@@ -150,15 +155,15 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	}
 
 	public void disconnectPeer(Host peer) {
-		logger.trace("Disconnecting peer: {}", peer);
+		logger.debug("Disconnecting peer: {}", peer);
 
 		if (!peerToRelayConnections.containsKey(peer)) {
-			logger.trace("Disconnecting peer: Peer to kill not connected to relay.");
+			logger.debug("Disconnecting peer: Peer to disconnect not connected to relay.");
 			return;
 		}
 
 		if (!disconnectedPeers.add(peer)) {
-			logger.trace("Disconnecting peer: Peer already disconnected.");
+			logger.debug("Disconnecting peer: Peer already disconnected.");
 			return;
 		}
 
@@ -187,14 +192,14 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	}
 
 	public void reconnectPeer(Host peer) {
-		logger.trace("Reconnecting peer: {}", peer);
+		logger.debug("Reconnecting peer: {}", peer);
 
 		if (!peerToRelayConnections.containsKey(peer)) {
-			logger.trace("Reconnecting peer: Peer to connect not connected to relay.");
+			logger.debug("Reconnecting peer: Peer to connect not connected to relay.");
 			return;
 		}
 
-		if (!disconnectedPeers.remove(peer)) logger.trace("Reconnecting peer: Peer already connected.");
+		if (!disconnectedPeers.remove(peer)) logger.debug("Reconnecting peer: Peer already connected.");
 		else
 			//send signal that peer is reconnected to network
 			sendMessage(new RelayPeerDisconnectedMessage(peer, peer, new IOException("Node " + peer + " reconnected")), peerToRelayConnections.get(peer));
@@ -213,15 +218,14 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 			logger.fatal("Inbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
 		} else {
 
-			logger.trace("InboundConnectionUp {}", clientSocket);
+			logger.debug("InboundConnectionUp {}", clientSocket);
 			Connection<RelayMessage> old;
-			if (relayList.contains(clientSocket)) {
-				logger.info("Relay {}: Connected to relay {}", clientSocket, self);
-				old = otherRelayConnections.putIfAbsent(clientSocket, connection);
-			}
-			else {
-				logger.info("Peer {}: Connected to relay {}", clientSocket, self);
-				old = peerToRelayConnections.putIfAbsent(clientSocket, connection);
+			if (relaySet.contains(clientSocket)) {
+				logger.info("Relay {} connected", clientSocket);
+				old = otherRelayConnections.put(clientSocket, connection);
+			} else {
+				logger.info("Peer {} connected", clientSocket);
+				old = peerToRelayConnections.put(clientSocket, connection);
 				loopPerSender.put(clientSocket, new DefaultEventLoop());
 			}
 
@@ -242,7 +246,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		if (clientSocket == null) {
 			logger.fatal("Inbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
 		} else {
-			if (relayList.contains(clientSocket))
+			if (relaySet.contains(clientSocket))
 				logger.fatal("Relay " + clientSocket + " disconnected from relay unexpectedly! cause:" + ((cause == null) ? "" : " " + cause));
 			else
 				logger.fatal("Peer " + clientSocket + " disconnected from relay unexpectedly! cause:" + ((cause == null) ? "" : " " + cause));
@@ -253,9 +257,8 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	public void outboundConnectionUp(Connection<RelayMessage> connection) {
 		Host clientSocket = connection.getPeer();
 
-		logger.trace("OutboundConnectionUp {}", clientSocket);
-		logger.info("Relay {}: Connected to relay {}", self, clientSocket);
-		Connection<RelayMessage> old = this.otherRelayConnections.putIfAbsent(clientSocket, connection);
+		logger.debug("OutboundConnectionUp {}", clientSocket);
+		Connection<RelayMessage> old = this.otherRelayConnections.put(clientSocket, connection);
 
 		if (old != null)
 			logger.fatal("Double outgoing connection with: " + clientSocket + " (" + connection.getPeer() + ")");
@@ -302,7 +305,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 		RelayMessage.Type type = msg.getType();
 
-		logger.debug("Received {} message {} to {} from {}", type.name(), msg.getSeqN(), to, from);
+		logger.trace("Received {} message {} to {} from {}", type.name(), msg.getSeqN(), to, from);
 
 		if (disconnectedPeers.contains(to)) {
 			if (type == RelayMessage.Type.CONN_OPEN)
@@ -333,10 +336,10 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		Host to = msg.getTo();
 		Host from = msg.getFrom();
 
-		logger.trace("Connection close message to {} from {}", to, from);
+		logger.debug("Connection close message to {} from {}", to, from);
 
 		if (!peerToPeerConnections.remove(new ImmutablePair<>(from, to))) {
-			logger.trace("Connection close with no out connection from {} to {}", from, to);
+			logger.debug("Connection close with no out connection from {} to {}", from, to);
 			return;
 		}
 
@@ -347,10 +350,10 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		Host to = msg.getTo();
 		Host from = msg.getFrom();
 
-		logger.trace("Connection accepted message to {} from {}", to, from);
+		logger.debug("Connection accepted message to {} from {}", to, from);
 
 		if (!peerToPeerConnections.contains(new ImmutablePair<>(to, from))) {
-			logger.trace("Connection accept with no out connection from {} to {}", to, from);
+			logger.debug("Connection accept with no out connection from {} to {}", to, from);
 			return;
 		}
 
@@ -361,10 +364,10 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		Host to = msg.getTo();
 		Host from = msg.getFrom();
 
-		logger.trace("Message to {} from {}", to, from);
+		logger.debug("Message to {} from {}", to, from);
 
 		if (!peerToPeerConnections.contains(new ImmutablePair<>(from, to)) && !peerToPeerConnections.contains(new ImmutablePair<>(to, from))) {
-			logger.trace("No connection between {} and {}", from, to);
+			logger.debug("No connection between {} and {}", from, to);
 			return;
 		}
 
@@ -375,11 +378,11 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		Host to = msg.getTo();
 		Host from = msg.getFrom();
 
-		logger.trace("Connection request to {} from {}", to, from);
+		logger.debug("Connection request to {} from {}", to, from);
 
 		Pair<Host, Host> pair = new ImmutablePair<>(from, to);
 		if (peerToPeerConnections.contains(new ImmutablePair<>(from, to))) {
-			logger.trace("Connection request when already existing connection: {}-{}", from, to);
+			logger.debug("Connection request when already existing connection: {}-{}", from, to);
 			return;
 		}
 
@@ -399,7 +402,6 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 		EventLoop loop = loopPerSender.get(sender);
 		if (loop == null) {
-			assert peerToRelayConnections.get(receiver) != null;
 			sendMessage(msg, peerToRelayConnections.get(receiver));
 		} else {
 			long delay = calculateDelay(sender, receiver);
@@ -408,10 +410,8 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 				Host relayHost = assignedRelayPerPeer.get(receiver);
 				Connection<RelayMessage> con;
 				if (relayHost.equals(self)) {
-					assert peerToRelayConnections.get(receiver) != null;
 					con = peerToRelayConnections.get(receiver);
 				} else {
-					assert otherRelayConnections.get(relayHost) != null;
 					con = otherRelayConnections.get(relayHost);
 				}
 				sendMessage(msg, con);
@@ -436,10 +436,11 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	protected void sendMessage(RelayMessage msg, Connection<RelayMessage> con) {
 		if (!disconnectedPeers.contains(msg.getTo())) {
 			if (con == null) {
-				logger.error("{}: Null connection with {}, {}, {}", self, msg, peerToRelayConnections.get(msg.getFrom()), peerToRelayConnections.get(msg.getTo()));
+				logger.error("Null connection with msg {}", msg);
+				logger.error(otherRelayConnections.keySet());
 			} else {
 				con.sendMessage(msg);
-				logger.debug("Sending {} message {} to {} from {}", msg.getType().name(), msg.getSeqN(), msg.getTo(), msg.getFrom());
+				logger.trace("Sending {} message {} to {} from {}", msg.getType().name(), msg.getSeqN(), msg.getTo(), msg.getFrom());
 			}
 		}
 	}

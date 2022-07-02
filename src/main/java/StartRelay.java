@@ -5,8 +5,8 @@ import net.sourceforge.argparse4j.inf.Namespace;
 import relay.BWLatencyRelay;
 import relay.Relay;
 
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
@@ -32,15 +32,22 @@ public class StartRelay {
 		properties.put(RELAY_ID, ns.getInt("relay_id").toString());
 		properties.put(SLEEP, ns.getLong("sleep").toString());
 
-		try (FileInputStream hostsConfig = new FileInputStream(ns.getString("list_nodes"));
-			 FileInputStream relaysConfig = new FileInputStream(ns.getString("list_relays"));
-			 FileInputStream latencyConfig = new FileInputStream(ns.getString("latency_matrix"))) {
+		InputStream hostsConfig = Files.newInputStream(Paths.get(ns.getString("list_nodes")));
+		InputStream relaysConfig = Files.newInputStream(Paths.get(ns.getString("list_relays")));
+		InputStream latencyConfig = Files.newInputStream(Paths.get(ns.getString("latency_matrix")));
 
-			if (ns.getString("bandwidth_config") == null)
-				new Relay(properties, hostsConfig, relaysConfig, latencyConfig);
-			else
-				new BWLatencyRelay(properties, hostsConfig, relaysConfig, latencyConfig, Files.newInputStream(Paths.get(ns.getString("bandwidth_config"))));
+		Relay relay;
+		if (ns.getString("bandwidth_config") == null)
+			relay = new Relay(properties, hostsConfig, relaysConfig, latencyConfig);
+		else {
+			InputStream bandwidthConfig = Files.newInputStream(Paths.get(ns.getString("bandwidth_config")));
+			relay = new BWLatencyRelay(properties, hostsConfig, relaysConfig, latencyConfig, bandwidthConfig);
 		}
+
+//		if (ns.getString("events_config") == null) {
+//			new PeerEvents(relay, eventsConfig);
+//		}
+
 	}
 
 	private static Namespace getNamespace(String[] args) throws UnknownHostException {
@@ -54,6 +61,7 @@ public class StartRelay {
 		parser.addArgument("-p", "--port").type(Integer.class).setDefault(9082).help("relay port");
 		parser.addArgument("-lm", "--latency_matrix").help("file with latency matrix");
 		parser.addArgument("-bc", "--bandwidth_config").help("file with bandwidth config for nodes");
+		parser.addArgument("-ec", "--events_config").help("file with scheduled events");
 		parser.addArgument("-s", "--sleep").type(Long.class).setDefault(4000).help("sleep time in ms before connecting to other relays");
 
 		try {

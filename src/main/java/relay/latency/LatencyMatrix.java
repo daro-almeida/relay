@@ -1,4 +1,4 @@
-package relay.util.matrixes;
+package relay.latency;
 
 import pt.unl.fct.di.novasys.network.data.Host;
 import relay.util.HostPropertySymmetricMatrix;
