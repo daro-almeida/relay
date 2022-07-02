@@ -1,7 +1,5 @@
 package relay;
 
-import io.netty.channel.DefaultEventLoop;
-import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -16,6 +14,8 @@ import pt.unl.fct.di.novasys.network.listeners.InConnListener;
 import pt.unl.fct.di.novasys.network.listeners.MessageListener;
 import pt.unl.fct.di.novasys.network.listeners.OutConnListener;
 import relay.latency.LatencyMatrix;
+import relay.latency.Scheduler;
+import relay.latency.SendMessageEvent;
 import relay.messaging.*;
 import relay.util.ConfigUtils;
 
@@ -24,7 +24,6 @@ import java.io.InputStream;
 import java.net.InetAddress;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
 public class Relay implements InConnListener<RelayMessage>, OutConnListener<RelayMessage>, MessageListener<RelayMessage>, AttributeValidator {
 
@@ -54,9 +53,9 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	protected final Map<Host, Connection<RelayMessage>> peerToRelayConnections;
 	protected final Map<Host, Connection<RelayMessage>> otherRelayConnections;
 	protected final Map<Host, Host> assignedRelayPerPeer;
-	protected final Map<Host, EventLoop> loopPerSender;
 	protected final Host self;
 	protected final List<Host> peerList;
+	protected final Scheduler scheduler;
 
 	private final NetworkManager<RelayMessage> network;
 	private final Attributes attributes;
@@ -102,8 +101,6 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 		disconnectedPeers = ConcurrentHashMap.newKeySet(numPeersOfThisRelay);
 
-		loopPerSender = new HashMap<>(numPeersOfThisRelay);
-
 		otherRelayConnections = new HashMap<>(numRelays - 1);
 		assignedRelayPerPeer = new HashMap<>(numPeers);
 
@@ -113,6 +110,8 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 		relayList = ConfigUtils.configToHostList(relayConfig, numRelays);
 		relaySet = new HashSet<>(relayList);
+
+		scheduler = new Scheduler(peerList);
 
 		assignPeersToRelays(numRelays, numPeers);
 
@@ -226,7 +225,6 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 			} else {
 				logger.info("Peer {} connected", clientSocket);
 				old = peerToRelayConnections.put(clientSocket, connection);
-				loopPerSender.put(clientSocket, new DefaultEventLoop());
 			}
 
 			if (old != null)
@@ -400,26 +398,17 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		Host receiver = msg.getTo();
 		Host sender = msg.getFrom();
 
-		EventLoop loop = loopPerSender.get(sender);
-		if (loop == null) {
-			sendMessage(msg, peerToRelayConnections.get(receiver));
+		if (peerToRelayConnections.containsKey(sender)) {
+			float delay = calculateDelay(sender, receiver);
+			Host relayHost = assignedRelayPerPeer.get(receiver);
+			Connection<RelayMessage> con = (relayHost.equals(self)) ? peerToRelayConnections.get(receiver) : otherRelayConnections.get(relayHost);
+			scheduler.addEvent(new SendMessageEvent(msg, () -> sendMessage(msg, con), delay));
 		} else {
-			long delay = calculateDelay(sender, receiver);
-
-			loop.schedule(() -> {
-				Host relayHost = assignedRelayPerPeer.get(receiver);
-				Connection<RelayMessage> con;
-				if (relayHost.equals(self)) {
-					con = peerToRelayConnections.get(receiver);
-				} else {
-					con = otherRelayConnections.get(relayHost);
-				}
-				sendMessage(msg, con);
-			}, delay, TimeUnit.MICROSECONDS);
+			sendMessage(msg, peerToRelayConnections.get(receiver));
 		}
 	}
 
-	public long calculateDelay(Host sender, Host receiver) {
+	public float calculateDelay(Host sender, Host receiver) {
 		float averageError;
 		if (assignedRelayPerPeer.get(sender).equals(self))
 			averageError = AVERAGE_ERROR_SAME_RELAY;
@@ -430,7 +419,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		if (latency == null)
 			latency = DEFAULT_LATENCY;
 
-		return (long) (latency - averageError) * 1000;
+		return latency - averageError;
 	}
 
 	protected void sendMessage(RelayMessage msg, Connection<RelayMessage> con) {
