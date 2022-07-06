@@ -28,9 +28,9 @@ public class SendMessageEvent implements Comparable<SendMessageEvent> {
 
 	@Override
 	public int compareTo(SendMessageEvent other) {
-		if (this.msg.getSeqN() == -1 || other.msg.getSeqN() == -1 || !this.msg.getFrom().equals(other.msg.getFrom()))
-			return (int) (this.sendTime - other.sendTime);
-		else
+		if (this.sendTime == other.sendTime && this.msg.getSeqN() != -1 && other.msg.getSeqN() != -1)
 			return this.msg.getSeqN() - other.msg.getSeqN();
+		else
+			return (int) (this.sendTime - other.sendTime);
 	}
 }

@@ -45,7 +45,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	public static final String DEFAULT_CONNECT_TIMEOUT = "1000";
 
 	private static final float DEFAULT_LATENCY = 0;
-	private static final float AVERAGE_ERROR_DIFFERENT_RELAYS = 1.8F;
+	private static final float AVERAGE_ERROR_DIFFERENT_RELAYS = 2;
 	private static final float AVERAGE_ERROR_SAME_RELAY = 1;
 	private static final Logger logger = LogManager.getLogger(Relay.class);
 	private static final Short EMULATED_MAGIC_NUMBER = 0x1369;
@@ -95,13 +95,13 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		attributes.putShort(AttributeValidator.CHANNEL_MAGIC_ATTRIBUTE, EMULATED_MAGIC_NUMBER);
 		attributes.putHost(LISTEN_ADDRESS_ATTRIBUTE, self);
 
-		peerToRelayConnections = new HashMap<>(numPeersOfThisRelay);
+		peerToRelayConnections = new ConcurrentHashMap<>(numPeersOfThisRelay);
 
 		peerToPeerConnections = ConcurrentHashMap.newKeySet(numPeersOfThisRelay * (numPeers - 1));
 
 		disconnectedPeers = ConcurrentHashMap.newKeySet(numPeersOfThisRelay);
 
-		otherRelayConnections = new HashMap<>(numRelays - 1);
+		otherRelayConnections = new ConcurrentHashMap<>(numRelays - 1);
 		assignedRelayPerPeer = new HashMap<>(numPeers);
 
 		peerList = ConfigUtils.configToHostList(hostsConfig, numPeers);
@@ -428,7 +428,6 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		if (!disconnectedPeers.contains(msg.getTo())) {
 			if (con == null) {
 				logger.error("Null connection with msg {}", msg);
-				logger.error(otherRelayConnections.keySet());
 			} else {
 				con.sendMessage(msg);
 				logger.trace("Sending {} message {} to {} from {}", msg.getType().name(), msg.getSeqN(), msg.getTo(), msg.getFrom());

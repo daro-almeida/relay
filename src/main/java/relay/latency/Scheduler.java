@@ -4,30 +4,27 @@ import io.netty.channel.DefaultEventLoop;
 import io.netty.channel.EventLoop;
 import pt.unl.fct.di.novasys.network.data.Host;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
+import java.util.*;
 import java.util.concurrent.PriorityBlockingQueue;
 
 public class Scheduler {
 
-	private final Thread eventThread;
-	private final Queue<SendMessageEvent> eventQueue;
-	private final Map<Host, EventLoop> loopPerSender;
+	private final Map<Host, Queue<SendMessageEvent>> eventQueuePerSender;
+	private final Map<Host, Thread> eventThreadPerSender;
 
 	public Scheduler(List<Host> peerList) {
-		eventQueue = new PriorityBlockingQueue<>();
-		loopPerSender = new HashMap<Host, EventLoop>(peerList.size()) {{
-			for (Host host : peerList) {
-				put(host, new DefaultEventLoop());
-			}
-		}};
-		eventThread = new Thread(this::eventLoop);
-		eventThread.start();
+		eventQueuePerSender = new HashMap<>(peerList.size());
+		eventThreadPerSender = new HashMap<>(peerList.size());
+		for (Host peer : peerList) {
+			Queue<SendMessageEvent> eventQueue = new PriorityBlockingQueue<>();
+			eventQueuePerSender.put(peer, eventQueue);
+			Thread eventThread = new Thread(() -> this.eventLoop(eventQueue, new DefaultEventLoop()));
+			eventThreadPerSender.put(peer, eventThread);
+			eventThread.start();
+		}
 	}
 
-	private void eventLoop() {
+	private void eventLoop(Queue<SendMessageEvent> eventQueue, EventLoop loop) {
 		while (true) {
 			SendMessageEvent event = eventQueue.peek();
 
@@ -35,7 +32,7 @@ public class Scheduler {
 
 			if (toSleep <= 0) {
 				SendMessageEvent e = eventQueue.remove();
-				loopPerSender.get(e.getMsg().getFrom()).submit(e.getRunnable());
+				loop.submit(e.getRunnable());
 			} else {
 				try {
 					Thread.sleep(toSleep);
@@ -46,7 +43,8 @@ public class Scheduler {
 	}
 
 	public void addEvent(SendMessageEvent event) {
-		eventQueue.add(event);
-		eventThread.interrupt();
+		Host sender = event.getMsg().getFrom();
+		eventQueuePerSender.get(sender).add(event);
+		eventThreadPerSender.get(sender).interrupt();
 	}
 }
