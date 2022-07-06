@@ -115,13 +115,15 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 		assignPeersToRelays(numRelays, numPeers);
 
-		long sleep = Long.parseLong(properties.getProperty(SLEEP));
-		new Timer().schedule(new TimerTask() {
-			@Override
-			public void run() {
-				connectToRelays(numRelays);
-			}
-		}, sleep);
+		if (numRelays > 1) {
+			int sleep = Integer.parseInt(properties.getProperty(SLEEP));
+			new Timer().schedule(new TimerTask() {
+				@Override
+				public void run() {
+					connectToRelays(numRelays);
+				}
+			}, sleep);
+		}
 	}
 
 	private static int numPeersOfRelay(int numPeers, int relayID, int numRelays) {

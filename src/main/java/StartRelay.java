@@ -30,7 +30,7 @@ public class StartRelay {
 		properties.put(NUM_NODES, ns.getInt("nodes").toString());
 		properties.put(NUM_RELAYS, ns.getInt("relays").toString());
 		properties.put(RELAY_ID, ns.getInt("relay_id").toString());
-		properties.put(SLEEP, ns.getLong("sleep").toString());
+		properties.put(SLEEP, ns.getInt("sleep").toString());
 
 		InputStream hostsConfig = Files.newInputStream(Paths.get(ns.getString("list_nodes")));
 		InputStream relaysConfig = Files.newInputStream(Paths.get(ns.getString("list_relays")));
@@ -62,7 +62,7 @@ public class StartRelay {
 		parser.addArgument("-lm", "--latency_matrix").help("file with latency matrix");
 		parser.addArgument("-bc", "--bandwidth_config").help("file with bandwidth config for nodes");
 		parser.addArgument("-ec", "--events_config").help("file with scheduled events");
-		parser.addArgument("-s", "--sleep").type(Long.class).setDefault(4000).help("sleep time in ms before connecting to other relays");
+		parser.addArgument("-s", "--sleep").type(Integer.class).setDefault(4000).help("sleep time in ms before connecting to other relays");
 
 		try {
 			return parser.parseArgs(args);
