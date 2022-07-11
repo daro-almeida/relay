@@ -57,6 +57,8 @@ def build_start_relay_command(relay_host, i, args):
         command.extend(["-Xms", args.Xms_relays])
     if args.Xmx_relays:
         command.extend(["-Xmx", args.Xmx_relays])
+    if args.relay_max_buffer_size:
+        command.extend(["-mbs", args.relay_max_buffer_size])
     if args.no_gc_relays:
         command.append("-no_gc")
     if args.latency_matrix:
@@ -100,6 +102,8 @@ def build_start_node_command(node_host, i, args):
         command.extend(["-Xms", args.Xms_nodes])
     if args.Xmx_nodes:
         command.extend(["-Xmx", args.Xmx_nodes])
+    if args.node_max_buffer_size:
+        command.extend(["-mbs", args.node_max_buffer_size])
     if args.no_gc_nodes:
         command.append("-no_gc")
     if args.verbose:
@@ -193,6 +197,8 @@ def main() -> int:
     parser.add_argument("-Xmx_nodes")
     parser.add_argument("-Xms_relays")
     parser.add_argument("-Xmx_relays")
+    parser.add_argument("-nmbs", "--node_max_buffer_size", help="max buffer size")
+    parser.add_argument("-rmbs", "--relay_max_buffer_size", help="max buffer size")
     parser.add_argument("-ngn", "--no_gc_nodes", action="store_true", help="disable garbage collector in nodes")
     parser.add_argument("-ngr", "--no_gc_relays", action="store_true", help="disable garbage collector in relays")
     parser.add_argument("-lf", "--log_folder", default="logs/", help="log folder")

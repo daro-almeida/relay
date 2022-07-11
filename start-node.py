@@ -9,6 +9,8 @@ def generate_command(args):
         command.append("-Xms%s" % args.Xms)
     if args.Xmx:
         command.append("-Xmx%s" % args.Xmx)
+    if args.max_buffer_size:
+        command.append("-XX:MaxDirectMemorySize=%s" % args.max_buffer_size)
     if args.no_gc:
         command.extend(["-XX:+UnlockExperimentalVMOptions", "-XX:+UseEpsilonGC", "-XX:+AlwaysPreTouch"])
     command.extend(["-DlogFilename=%snode-%d" % (args.logfolder, args.id), "-cp", args.jar, args.main_class, "-conf",
@@ -34,6 +36,7 @@ def main() -> int:
     parser.add_argument("-cf", "--config_file", default="config.properties", help="config file")
     parser.add_argument("-Xms")
     parser.add_argument("-Xmx")
+    parser.add_argument("-mbs", "--max_buffer_size", help="max buffer size")
     parser.add_argument("-no_gc", action="store_true", help="disable garbage collector")
     parser.add_argument("-lf", "--logfolder", default="logs/", help="log folder")
     parser.add_argument("-a", "--address", default=socket.gethostbyname(socket.gethostname()),
