@@ -28,7 +28,7 @@ public class BWLatencyRelay extends Relay implements InConnListener<RelayMessage
 		Host sender = msg.getFrom();
 
 		if (peerToRelayConnections.containsKey(sender)) {
-			float delay = calculateDelay(sender, receiver);
+			float delay = calculateDelay(msg);
 			Host relayHost = assignedRelayPerPeer.get(receiver);
 
 			bwList.getOutBandwidthBucket(sender).enqueue(msg, () -> scheduler.addEvent(new SendMessageEvent(msg, () -> {

@@ -12,16 +12,12 @@ public class RelayConnectionAcceptMessage extends RelayMessage {
 		}
 
 		@Override
-		public RelayConnectionAcceptMessage deserialize(int seqN, Host from, Host to, ByteBuf in) {
-			return new RelayConnectionAcceptMessage(seqN, from, to);
+		public RelayConnectionAcceptMessage deserialize(int seqN, Host from, Host to, long sentTime, ByteBuf in) {
+			return new RelayConnectionAcceptMessage(seqN, from, to, sentTime);
 		}
 	};
 
-	public RelayConnectionAcceptMessage(Host from, Host to) {
-		super(from, to, Type.CONN_ACCEPT);
-	}
-
-	public RelayConnectionAcceptMessage(int seqN, Host from, Host to) {
-		super(seqN, from, to, Type.CONN_ACCEPT);
+	public RelayConnectionAcceptMessage(int seqN, Host from, Host to, long sentTime) {
+		super(seqN, from, to, sentTime, Type.CONN_ACCEPT);
 	}
 }

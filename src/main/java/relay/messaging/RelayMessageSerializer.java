@@ -15,9 +15,10 @@ public class RelayMessageSerializer implements ISerializer<RelayMessage> {
 	@Override
 	public void serialize(RelayMessage relayMessage, ByteBuf out) throws IOException {
 		out.writeInt(relayMessage.getType().opCode);
-		out.writeInt(relayMessage.seqN);
-		Host.serializer.serialize(relayMessage.from, out);
-		Host.serializer.serialize(relayMessage.to, out);
+		out.writeInt(relayMessage.getSeqN());
+		Host.serializer.serialize(relayMessage.getFrom(), out);
+		Host.serializer.serialize(relayMessage.getTo(), out);
+		out.writeLong(relayMessage.getSentTime());
 		relayMessage.getType().serializer.serialize(relayMessage, out);
 		logger.trace("Serialized {} message {} to {} from {}", relayMessage.getType().name(), relayMessage.getSeqN(), relayMessage.getTo(), relayMessage.getFrom());
 	}
@@ -28,7 +29,8 @@ public class RelayMessageSerializer implements ISerializer<RelayMessage> {
 		int seqN = in.readInt();
 		Host from = Host.serializer.deserialize(in);
 		Host to = Host.serializer.deserialize(in);
-		RelayMessage relayMessage = type.serializer.deserialize(seqN, from, to, in);
+		long sentTime = in.readLong();
+		RelayMessage relayMessage = type.serializer.deserialize(seqN, from, to, sentTime, in);
 		logger.trace("Deserialized {} message {} to {} from {}", relayMessage.getType().name(), relayMessage.getSeqN(), relayMessage.getTo(), relayMessage.getFrom());
 		return relayMessage;
 	}

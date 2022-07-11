@@ -13,13 +13,13 @@ public class RelayConnectionFailMessage extends RelayMessage {
 		}
 
 		@Override
-		public RelayConnectionFailMessage deserialize(int seqN, Host from, Host to, ByteBuf in) {
+		public RelayConnectionFailMessage deserialize(int seqN, Host from, Host to, long sentTime, ByteBuf in) {
 			int size = in.readInt();
 			byte[] strBytes = new byte[size];
 			in.readBytes(strBytes);
 			String message = new String(strBytes);
 
-			return new RelayConnectionFailMessage(from, to, new Throwable(message));
+			return new RelayConnectionFailMessage(from, to, sentTime, new Throwable(message));
 		}
 	};
 	private final Throwable cause;
@@ -29,7 +29,8 @@ public class RelayConnectionFailMessage extends RelayMessage {
 		this.cause = cause;
 	}
 
-	public Throwable getCause() {
-		return cause;
+	public RelayConnectionFailMessage(Host from, Host to, long sentTime, Throwable cause) {
+		super(-1, from, to, sentTime, Type.CONN_FAIL);
+		this.cause = cause;
 	}
 }

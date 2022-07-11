@@ -13,19 +13,24 @@ public class RelayPeerDisconnectedMessage extends RelayMessage {
 		}
 
 		@Override
-		public RelayPeerDisconnectedMessage deserialize(int seqN, Host from, Host to, ByteBuf in) {
+		public RelayPeerDisconnectedMessage deserialize(int seqN, Host from, Host to, long sentTime, ByteBuf in) {
 			int size = in.readInt();
 			byte[] strBytes = new byte[size];
 			in.readBytes(strBytes);
 			String message = new String(strBytes);
 
-			return new RelayPeerDisconnectedMessage(from, to, new Throwable(message));
+			return new RelayPeerDisconnectedMessage(from, to, sentTime, new Throwable(message));
 		}
 	};
 	private final Throwable cause;
 
 	public RelayPeerDisconnectedMessage(Host from, Host to, Throwable cause) {
-		super(from, to, Type.PEER_DEAD);
+		super(from, to, Type.PEER_DISCONNECTED);
+		this.cause = cause;
+	}
+
+	public RelayPeerDisconnectedMessage(Host from, Host to, long sentTime, Throwable cause) {
+		super(-1, from, to, sentTime, Type.PEER_DISCONNECTED);
 		this.cause = cause;
 	}
 }

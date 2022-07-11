@@ -13,24 +13,19 @@ public class RelayConnectionCloseMessage extends RelayMessage {
 		}
 
 		@Override
-		public RelayConnectionCloseMessage deserialize(int seqN, Host from, Host to, ByteBuf in) {
+		public RelayConnectionCloseMessage deserialize(int seqN, Host from, Host to, long sentTime, ByteBuf in) {
 			int size = in.readInt();
 			byte[] strBytes = new byte[size];
 			in.readBytes(strBytes);
 			String message = new String(strBytes);
 
-			return new RelayConnectionCloseMessage(seqN, from, to, new Throwable(message));
+			return new RelayConnectionCloseMessage(seqN, from, to, sentTime, new Throwable(message));
 		}
 	};
 	private final Throwable cause;
 
-	public RelayConnectionCloseMessage(Host from, Host to, Throwable cause) {
-		super(from, to, Type.CONN_CLOSE);
-		this.cause = cause;
-	}
-
-	public RelayConnectionCloseMessage(int seqN, Host from, Host to, Throwable cause) {
-		super(seqN, from, to, Type.CONN_CLOSE);
+	public RelayConnectionCloseMessage(int seqN, Host from, Host to, long sentTime, Throwable cause) {
+		super(seqN, from, to, sentTime, Type.CONN_CLOSE);
 		this.cause = cause;
 	}
 }

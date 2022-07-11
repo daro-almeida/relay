@@ -5,23 +5,26 @@ import pt.unl.fct.di.novasys.network.data.Host;
 
 public abstract class RelayMessage {
 
-	protected final Host from;
-	protected final Host to;
-	protected final int seqN;
+	private final Host from;
+	private final Host to;
+	private final int seqN;
 	private final Type type;
+	private final long sentTime;
 
 	protected RelayMessage(Host from, Host to, Type type) {
-		this.seqN = -1;
-		this.type = type;
-		this.from = from;
-		this.to = to;
+		this(-1, from, to, type);
 	}
 
 	protected RelayMessage(int seqN, Host from, Host to, Type type) {
-		this.seqN = seqN;
+		this(seqN, from, to, System.currentTimeMillis(), type);
+	}
+
+	protected RelayMessage(int seqN, Host from, Host to, long sentTime, Type type) {
 		this.type = type;
 		this.from = from;
 		this.to = to;
+		this.seqN = seqN;
+		this.sentTime = sentTime;
 	}
 
 	public int getSeqN() {
@@ -40,6 +43,10 @@ public abstract class RelayMessage {
 		return to;
 	}
 
+	public long getSentTime() {
+		return sentTime;
+	}
+
 	@Override
 	public String toString() {
 		return "RelayMessage{" +
@@ -56,7 +63,7 @@ public abstract class RelayMessage {
 		CONN_CLOSE(2, RelayConnectionCloseMessage.serializer),
 		CONN_ACCEPT(3, RelayConnectionAcceptMessage.serializer),
 		CONN_FAIL(4, RelayConnectionFailMessage.serializer),
-		PEER_DEAD(5, RelayPeerDisconnectedMessage.serializer);
+		PEER_DISCONNECTED(5, RelayPeerDisconnectedMessage.serializer);
 
 		private static final Type[] opcodeIdx;
 
@@ -93,6 +100,6 @@ public abstract class RelayMessage {
 	public interface IRelaySerializer<T extends RelayMessage> {
 		void serialize(T msg, ByteBuf out);
 
-		T deserialize(int seqN, Host from, Host to, ByteBuf in);
+		T deserialize(int seqN, Host from, Host to, long sentTime, ByteBuf in);
 	}
 }

@@ -9,17 +9,17 @@ import java.util.concurrent.PriorityBlockingQueue;
 
 public class Scheduler {
 
-	private final Map<Host, Queue<SendMessageEvent>> eventQueuePerSender;
-	private final Map<Host, Thread> eventThreadPerSender;
+	private final Map<Host, Queue<SendMessageEvent>> eventQueuePerPeer;
+	private final Map<Host, Thread> eventThreadPerPeer;
 
 	public Scheduler(List<Host> peerList) {
-		eventQueuePerSender = new HashMap<>(peerList.size());
-		eventThreadPerSender = new HashMap<>(peerList.size());
+		eventQueuePerPeer = new HashMap<>(peerList.size());
+		eventThreadPerPeer = new HashMap<>(peerList.size());
 		for (Host peer : peerList) {
 			Queue<SendMessageEvent> eventQueue = new PriorityBlockingQueue<>();
-			eventQueuePerSender.put(peer, eventQueue);
+			eventQueuePerPeer.put(peer, eventQueue);
 			Thread eventThread = new Thread(() -> this.eventLoop(eventQueue, new DefaultEventLoop()));
-			eventThreadPerSender.put(peer, eventThread);
+			eventThreadPerPeer.put(peer, eventThread);
 			eventThread.start();
 		}
 	}
@@ -44,7 +44,7 @@ public class Scheduler {
 
 	public void addEvent(SendMessageEvent event) {
 		Host sender = event.getMsg().getFrom();
-		eventQueuePerSender.get(sender).add(event);
-		eventThreadPerSender.get(sender).interrupt();
+		eventQueuePerPeer.get(sender).add(event);
+		eventThreadPerPeer.get(sender).interrupt();
 	}
 }

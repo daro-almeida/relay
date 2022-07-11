@@ -45,8 +45,6 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 	public static final String DEFAULT_CONNECT_TIMEOUT = "1000";
 
 	private static final float DEFAULT_LATENCY = 0;
-	private static final float AVERAGE_ERROR_DIFFERENT_RELAYS = 2;
-	private static final float AVERAGE_ERROR_SAME_RELAY = 1;
 	private static final Logger logger = LogManager.getLogger(Relay.class);
 	private static final Short EMULATED_MAGIC_NUMBER = 0x1369;
 
@@ -247,9 +245,9 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 			logger.fatal("Inbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
 		} else {
 			if (relaySet.contains(clientSocket))
-				logger.fatal("Relay " + clientSocket + " disconnected from relay unexpectedly! cause:" + ((cause == null) ? "" : " " + cause));
+				logger.fatal("Relay " + clientSocket + " disconnected from relay unexpectedly! cause:" + ((cause == null) ? "" : " " + Arrays.toString(cause.getStackTrace())));
 			else
-				logger.fatal("Peer " + clientSocket + " disconnected from relay unexpectedly! cause:" + ((cause == null) ? "" : " " + cause));
+				logger.fatal("Peer " + clientSocket + " disconnected from relay unexpectedly! cause:" + ((cause == null) ? "" : " " + Arrays.toString(cause.getStackTrace())));
 		}
 	}
 
@@ -276,7 +274,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 		if (clientSocket == null) {
 			logger.fatal("Outbound connection without LISTEN_ADDRESS: " + connection.getPeer() + " " + connection.getPeerAttributes());
 		} else {
-			logger.fatal("Relay " + clientSocket + " disconnected unexpectedly! cause:" + ((cause == null) ? "" : " " + cause));
+			logger.fatal("Relay " + clientSocket + " disconnected unexpectedly! cause:" + ((cause == null) ? "" : " " + Arrays.toString(cause.getStackTrace())));
 		}
 	}
 
@@ -327,7 +325,7 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 				handleConnectionAccept((RelayConnectionAcceptMessage) msg);
 				break;
 			case CONN_FAIL:
-			case PEER_DEAD:
+			case PEER_DISCONNECTED:
 				sendMessageWithDelay(msg);
 		}
 	}
@@ -398,30 +396,27 @@ public class Relay implements InConnListener<RelayMessage>, OutConnListener<Rela
 
 	protected void sendMessageWithDelay(RelayMessage msg) {
 		Host receiver = msg.getTo();
-		Host sender = msg.getFrom();
 
-		if (peerToRelayConnections.containsKey(sender)) {
-			float delay = calculateDelay(sender, receiver);
-			Host relayHost = assignedRelayPerPeer.get(receiver);
-			Connection<RelayMessage> con = (relayHost.equals(self)) ? peerToRelayConnections.get(receiver) : otherRelayConnections.get(relayHost);
+		Connection<RelayMessage> con;
+		if ((con = peerToRelayConnections.get(receiver)) != null) {
+			float delay = calculateDelay(msg);
 			scheduler.addEvent(new SendMessageEvent(msg, () -> sendMessage(msg, con), delay));
 		} else {
-			sendMessage(msg, peerToRelayConnections.get(receiver));
+			sendMessage(msg, otherRelayConnections.get(assignedRelayPerPeer.get(receiver)));
 		}
 	}
 
-	public float calculateDelay(Host sender, Host receiver) {
-		float averageError;
-		if (assignedRelayPerPeer.get(sender).equals(self))
-			averageError = AVERAGE_ERROR_SAME_RELAY;
-		else
-			averageError = AVERAGE_ERROR_DIFFERENT_RELAYS;
+	public float calculateDelay(RelayMessage msg) {
+		Host sender = msg.getFrom();
+		Host receiver = msg.getTo();
 
 		Float latency = latencyMatrix.getProperty(sender, receiver);
-		if (latency == null)
+		if (latency == null) {
+			logger.error("Null latency: {}-{}", sender, receiver);
 			latency = DEFAULT_LATENCY;
+		}
 
-		return latency - averageError;
+		return latency - (System.currentTimeMillis() - msg.getSentTime());
 	}
 
 	protected void sendMessage(RelayMessage msg, Connection<RelayMessage> con) {

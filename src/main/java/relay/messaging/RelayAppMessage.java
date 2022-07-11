@@ -12,23 +12,18 @@ public class RelayAppMessage extends RelayMessage {
 		}
 
 		@Override
-		public RelayAppMessage deserialize(int seqN, Host from, Host to, ByteBuf in) {
+		public RelayAppMessage deserialize(int seqN, Host from, Host to, long sentTime, ByteBuf in) {
 			int msgSize = in.readInt();
 			byte[] content = new byte[msgSize];
 			in.readBytes(content);
 
-			return new RelayAppMessage(seqN, from, to, content);
+			return new RelayAppMessage(seqN, from, to, sentTime, content);
 		}
 	};
 	private final byte[] payload;
 
-	public RelayAppMessage(Host from, Host to, byte[] payload) {
-		super(from, to, Type.APP_MSG);
-		this.payload = payload;
-	}
-
-	public RelayAppMessage(int seqN, Host from, Host to, byte[] payload) {
-		super(seqN, from, to, Type.APP_MSG);
+	public RelayAppMessage(int seqN, Host from, Host to, long sentTime, byte[] payload) {
+		super(seqN, from, to, sentTime, Type.APP_MSG);
 		this.payload = payload;
 	}
 

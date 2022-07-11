@@ -1,5 +1,7 @@
 package relay.bandwidth;
 
+import io.netty.channel.DefaultEventLoop;
+import io.netty.channel.EventLoop;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -25,11 +27,13 @@ public class BandwidthBucket {
 	private final Queue<MutablePair<Double, Runnable>> queue;
 	private double capacity;
 	private double currentSize;
+	private final EventLoop loop;
 
 	private BandwidthBucket() {
 		this.currentSize = 0;
 		this.queue = new LinkedList<>();
 		this.timer = new Timer();
+		this.loop = new DefaultEventLoop();
 		startTimer();
 	}
 
@@ -64,7 +68,7 @@ public class BandwidthBucket {
 				queue.add(new MutablePair<>(0D, runnable));
 				logger.trace("Queue done. {}/{}, {}", currentSize, capacity, queue.size());
 			} else
-				new Thread(runnable).start();
+				loop.submit(runnable);
 		}
 
 	}
@@ -83,7 +87,7 @@ public class BandwidthBucket {
 						else {
 							queue.remove();
 							logger.trace("Dequeue done. {}/{}, {}", currentSize, capacity, queue.size());
-							new Thread(p.getRight()).start();
+							loop.submit(p.getRight());
 						}
 					}
 				}
@@ -104,7 +108,7 @@ public class BandwidthBucket {
 			case CONN_CLOSE:
 			case CONN_ACCEPT:
 			case CONN_FAIL:
-			case PEER_DEAD:
+			case PEER_DISCONNECTED:
 				addControlPacket(runnable);
 		}
 	}

@@ -12,16 +12,12 @@ public class RelayConnectionOpenMessage extends RelayMessage {
 		}
 
 		@Override
-		public RelayConnectionOpenMessage deserialize(int seqN, Host from, Host to, ByteBuf in) {
-			return new RelayConnectionOpenMessage(seqN, from, to);
+		public RelayConnectionOpenMessage deserialize(int seqN, Host from, Host to, long sentTime, ByteBuf in) {
+			return new RelayConnectionOpenMessage(seqN, from, to, sentTime);
 		}
 	};
 
-	public RelayConnectionOpenMessage(Host from, Host to) {
-		super(from, to, Type.CONN_OPEN);
-	}
-
-	public RelayConnectionOpenMessage(int seqN, Host from, Host to) {
-		super(seqN, from, to, Type.CONN_OPEN);
+	public RelayConnectionOpenMessage(int seqN, Host from, Host to, long sentTime) {
+		super(seqN, from, to, sentTime, Type.CONN_OPEN);
 	}
 }
